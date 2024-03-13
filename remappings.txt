@@ -2,3 +2,4 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 clober-dex/v2-core/=lib/v2-core/contracts/
+solmate/=lib/solmate/src/
