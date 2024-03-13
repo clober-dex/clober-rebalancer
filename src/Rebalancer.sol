@@ -19,8 +19,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     IBookManager private immutable _bookManager;
 
     mapping(bytes32 key => address strategy) private _strategy;
-    mapping(bytes32 key => uint256 amount) private _amountA;
-    mapping(bytes32 key => uint256 amount) private _amountB;
+    mapping(bytes32 key => uint256 amount) private _reserveA;
+    mapping(bytes32 key => uint256 amount) private _reserveB;
     mapping(bytes32 key => OrderId[]) private _orderListA;
     mapping(bytes32 key => OrderId[]) private _orderListB;
     mapping(Currency currency => uint256 amount) private _readyToWithdraw;
@@ -47,8 +47,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
         _readyToWithdraw[bookKeyA.quote] -= amountA;
         _readyToWithdraw[bookKeyA.base] -= amountB;
-        _amountA[key] += amountA;
-        _amountB[key] += amountB;
+        _reserveA[key] += amountA;
+        _reserveB[key] += amountB;
     }
 
     function cancelOrders(OrderId orderId, uint64 to) external onlyOwner {
@@ -97,8 +97,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     function _rebalance(BookId bookIdA, BookId bookIdB) public selfOnly {
         bytes32 key = _encodeKey(bookIdA, bookIdB);
 
-        uint256 amountA = _amountA[key];
-        uint256 amountB = _amountB[key];
+        uint256 amountA = _reserveA[key];
+        uint256 amountB = _reserveB[key];
 
         // Remove all orders
         (uint256 canceledAmount, uint256 claimedAmount) = _clearOrders(_orderListA[key]);
@@ -126,8 +126,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         Currency currencyA = bookKeyA.quote;
         Currency currencyB = bookKeyA.base;
 
-        _amountA[key] = _settleCurrency(currencyA, amountA);
-        _amountB[key] = _settleCurrency(currencyB, amountB);
+        _reserveA[key] = _settleCurrency(currencyA, amountA);
+        _reserveB[key] = _settleCurrency(currencyB, amountB);
     }
 
     function _remove(BookId bookIdA, BookId bookIdB) public selfOnly {
@@ -142,10 +142,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         }
 
         IBookManager.BookKey memory bookKey = _bookManager.getBookKey(bookIdA);
-        _amountA[key] = 0;
-        _amountB[key] = 0;
-        _readyToWithdraw[bookKey.quote] += _settleCurrency(bookKey.quote, _amountA[key]);
-        _readyToWithdraw[bookKey.base] += _settleCurrency(bookKey.base, _amountB[key]);
+        _reserveA[key] = 0;
+        _reserveB[key] = 0;
+        _readyToWithdraw[bookKey.quote] += _settleCurrency(bookKey.quote, _reserveA[key]);
+        _readyToWithdraw[bookKey.base] += _settleCurrency(bookKey.base, _reserveB[key]);
     }
 
     function _cancelOrder(OrderId orderId, uint64 to) public selfOnly {
