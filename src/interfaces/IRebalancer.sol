@@ -13,6 +13,11 @@ interface IRebalancer {
     error InvalidLockCaller();
     error LockFailure();
 
+    function getLiquidity(BookId bookIdA, BookId bookIdB)
+        external
+        view
+        returns (uint256 liquidityA, uint256 liquidityB);
+
     function registerStrategy(BookId bookIdA, BookId bookIdB, address strategy) external;
 
     function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external;

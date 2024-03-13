@@ -15,6 +15,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using OrderIdLibrary for OrderId;
+    using TickLibrary for Tick;
+    using FeePolicyLibrary for FeePolicy;
 
     IBookManager private immutable _bookManager;
 
@@ -32,6 +34,50 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
 
     constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
         _bookManager = bookManager_;
+    }
+
+    function getLiquidity(BookId bookIdA, BookId bookIdB)
+        public
+        view
+        returns (uint256 liquidityA, uint256 liquidityB)
+    {
+        bytes32 key = _encodeKey(bookIdA, bookIdB);
+        liquidityA = _reserveA[key];
+        liquidityB = _reserveB[key];
+
+        IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyB = _bookManager.getBookKey(bookIdB);
+
+        OrderId[] memory orderListA = _orderListA[key];
+        OrderId[] memory orderListB = _orderListB[key];
+
+        for (uint256 i; i < orderListA.length; ++i) {
+            (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyA, orderListA[i]);
+            liquidityA += cancelable;
+            liquidityB += claimable;
+        }
+        for (uint256 i; i < orderListB.length; ++i) {
+            (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyB, orderListB[i]);
+            liquidityA += claimable;
+            liquidityB += cancelable;
+        }
+    }
+
+    function _getLiquidity(IBookManager.BookKey memory bookKey, OrderId orderId)
+        internal
+        view
+        returns (uint256 cancelable, uint256 claimable)
+    {
+        IBookManager.OrderInfo memory orderInfo = _bookManager.getOrder(orderId);
+        cancelable = uint256(orderInfo.open) * bookKey.unit;
+        claimable = orderId.getTick().quoteToBase(uint256(orderInfo.claimable) * bookKey.unit, false);
+        if (bookKey.makerPolicy.usesQuote()) {
+            int256 fee = bookKey.makerPolicy.calculateFee(cancelable, true);
+            cancelable = uint256(int256(cancelable) + fee);
+        } else {
+            int256 fee = bookKey.makerPolicy.calculateFee(claimable, false);
+            claimable = fee > 0 ? claimable - uint256(fee) : claimable + uint256(-fee);
+        }
     }
 
     function registerStrategy(BookId bookIdA, BookId bookIdB, address strategy) external onlyOwner {
