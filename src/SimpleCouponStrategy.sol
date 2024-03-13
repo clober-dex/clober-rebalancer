@@ -2,13 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import "clober-dex/v2-core/interfaces/IBookManager.sol";
-import "clober-dex/v2-core/libraries/Tick.sol";
-import "solmate/utils/FixedPointMathLib.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
+import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
+import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
-import "./libraries/Epoch.sol";
-import "./interfaces/IStrategy.sol";
+import {Epoch, EpochLibrary} from "./libraries/Epoch.sol";
+import {IStrategy} from "./interfaces/IStrategy.sol";
 
 contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     using TickLibrary for Tick;
