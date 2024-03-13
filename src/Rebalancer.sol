@@ -137,8 +137,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         _clearOrders(_orderListA[key]);
         _clearOrders(_orderListB[key]);
         assembly {
-            sstore(orderListA.slot, 0)
-            sstore(orderListB.slot, 0)
+            sstore(_orderListA.slot, 0)
+            sstore(_orderListB.slot, 0)
         }
 
         IBookManager.BookKey memory bookKey = _bookManager.getBookKey(bookIdA);
