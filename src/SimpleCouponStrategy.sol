@@ -31,15 +31,15 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         _bookManager = bookManager_;
     }
 
-    function calculateCouponPrice(Epoch epoch, uint256 rate) public view returns (uint256 price) {
+    function calculateCouponPrice(Epoch epoch, uint256 ratePerSecond) public view returns (uint256 price) {
         Epoch current = EpochLibrary.current();
         if (current > epoch) {
             return 0;
         }
         uint256 thisTimestamp = block.timestamp;
-        price = FixedPointMathLib.rpow(rate, epoch.endTime() - thisTimestamp, _PRECISION);
+        price = FixedPointMathLib.rpow(_PRECISION + ratePerSecond, epoch.endTime() - thisTimestamp, _PRECISION);
         if (epoch > current) {
-            price -= FixedPointMathLib.rpow(rate, epoch.sub(1).endTime() - thisTimestamp, _PRECISION);
+            price -= FixedPointMathLib.rpow(_PRECISION + ratePerSecond, epoch.sub(1).endTime() - thisTimestamp, _PRECISION);
         } else {
             price -= _PRECISION;
         }
@@ -49,7 +49,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         bytes32 key = _encodeKey(bookIdA, bookIdB);
         CouponStrategy memory strategy = _strategy[key];
         bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate));
-        askTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate));
+        askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate))));
     }
 
     function computeAllocation(BookId bookIdA, uint256 amountA, BookId bookIdB, uint256 amountB)
