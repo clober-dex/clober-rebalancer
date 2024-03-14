@@ -2,14 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "clober-dex/v2-core/interfaces/IBookManager.sol";
-import "clober-dex/v2-core/interfaces/ILocker.sol";
-import "clober-dex/v2-core/libraries/Tick.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IBookManager, BookId} from "clober-dex/v2-core/interfaces/IBookManager.sol";
+import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
+import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
+import {OrderId, OrderIdLibrary} from "clober-dex/v2-core/libraries/OrderId.sol";
+import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
+import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
 
-import "./interfaces/IRebalancer.sol";
-import "./interfaces/IStrategy.sol";
+import {IRebalancer} from "./interfaces/IRebalancer.sol";
+import {IStrategy} from "./interfaces/IStrategy.sol";
 
 contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     using SafeERC20 for IERC20;
