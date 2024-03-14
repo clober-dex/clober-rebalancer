@@ -45,13 +45,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         return permissions;
     }
 
-    function beforeMake(address, IBookManager.MakeParams calldata, bytes calldata)
+    function beforeMake(address sender, IBookManager.MakeParams calldata, bytes calldata)
         external
         override
         onlyBookManager
         returns (bytes4)
     {
-        revert HookNotImplemented();
+        if (sender != address(this)) revert InvalidMaker();
+        return this.beforeMake.selector;
     }
 
     function beforeTake(address, IBookManager.TakeParams calldata, bytes calldata)

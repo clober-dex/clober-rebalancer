@@ -13,6 +13,7 @@ interface IRebalancer {
     error InvalidLockAcquiredSender();
     error InvalidLockCaller();
     error LockFailure();
+    error InvalidMaker();
 
     function getLiquidity(BookId bookIdA, BookId bookIdB)
         external
