@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {OrderId} from "clober-dex/v2-core/libraries/OrderId.sol";
 import {Currency} from "clober-dex/v2-core/libraries/Currency.sol";
@@ -18,7 +19,8 @@ interface IRebalancer {
         view
         returns (uint256 liquidityA, uint256 liquidityB);
 
-    function registerStrategy(BookId bookIdA, BookId bookIdB, address strategy) external;
+    function open(IBookManager.BookKey calldata bookIdA, IBookManager.BookKey calldata bookIdB, address strategy)
+        external;
 
     function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external;
 
@@ -31,4 +33,6 @@ interface IRebalancer {
     function withdraw(Currency currency, address to, uint256 amount) external;
 
     function rebalance(BookId bookIdA, BookId bookIdB) external;
+
+    function setStrategy(BookId bookIdA, BookId bookIdB, address strategy) external;
 }

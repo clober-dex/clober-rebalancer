@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IBookManager, BookId} from "clober-dex/v2-core/interfaces/IBookManager.sol";
+import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
+import {BookId, BookIdLibrary} from "clober-dex/v2-core/libraries/BookId.sol";
 import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
 import {OrderId, OrderIdLibrary} from "clober-dex/v2-core/libraries/OrderId.sol";
 import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
@@ -16,6 +17,7 @@ import {IStrategy} from "./interfaces/IStrategy.sol";
 import {BaseHook, Hooks} from "clober-dex/v2-core/hooks/BaseHook.sol";
 
 contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
+    using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using OrderIdLibrary for OrderId;
@@ -34,23 +36,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         _;
     }
 
-    constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) BaseHook(bookManager_) {}
+    constructor(IBookManager bookManager_, address initialOwner_) BaseHook(bookManager_) Ownable(initialOwner_) {}
 
     function getHooksCalls() public pure override returns (Hooks.Permissions memory) {
         Hooks.Permissions memory permissions;
-        permissions.afterOpen = true;
         permissions.beforeMake = true;
         permissions.beforeTake = true;
         return permissions;
-    }
-
-    function afterOpen(address, IBookManager.BookKey calldata, bytes calldata)
-        external
-        override
-        onlyBookManager
-        returns (bytes4)
-    {
-        revert HookNotImplemented();
     }
 
     function beforeMake(address, IBookManager.MakeParams calldata, bytes calldata)
@@ -115,12 +107,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         }
     }
 
-    function registerStrategy(BookId bookIdA, BookId bookIdB, address strategy) external onlyOwner {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
-        if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
-        _strategy[key] = IStrategy(strategy);
+    function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
+        external
+        onlyOwner
+    {
+        bookManager.lock(address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy));
     }
 
     function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external onlyOwner {
@@ -174,6 +165,19 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         assembly {
             revert(add(returnData, 32), mload(returnData))
         }
+    }
+
+    function _open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
+        public
+        selfOnly
+    {
+        if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
+        bookManager.open(bookKeyA, "");
+        bookManager.open(bookKeyB, "");
+        BookId bookIdA = bookKeyA.toId();
+        BookId bookIdB = bookKeyB.toId();
+        bytes32 key = _encodeKey(bookIdA, bookIdB);
+        _strategy[key] = IStrategy(strategy);
     }
 
     function _rebalance(BookId bookIdA, BookId bookIdB) public selfOnly {
@@ -286,6 +290,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
 
     function _encodeKey(BookId bookIdA, BookId bookIdB) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(bookIdA, bookIdB));
+    }
+
+    function setStrategy(BookId bookIdA, BookId bookIdB, address strategy) external onlyOwner {
+        bytes32 key = _encodeKey(bookIdA, bookIdB);
+        _strategy[key] = IStrategy(strategy);
     }
 
     receive() external payable {}
