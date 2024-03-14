@@ -22,6 +22,7 @@ contract SimpleCouponStrategyTest is Test {
     MockERC20 public tokenB;
     IBookManager.BookKey public keyA;
     IBookManager.BookKey public keyB;
+    bytes32 public key;
 
     function setUp() public {
         vm.warp(1710317879);
@@ -50,10 +51,13 @@ contract SimpleCouponStrategyTest is Test {
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
 
+        BookId bookIdA = keyA.toId();
+        BookId bookIdB = keyB.toId();
+        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
+        key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+
         strategy = new SimpleCouponStrategy(bookManager, address(this));
-        strategy.setCouponStrategy(
-            keyA.toId(), keyB.toId(), EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973
-        ); // 4%, 6%
+        strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
     }
 
     function testCalculateCouponPrice() public {
@@ -75,7 +79,7 @@ contract SimpleCouponStrategyTest is Test {
     }
 
     function testCalculateCouponTick() public {
-        (Tick bidTick, Tick askTick) = strategy.calculateCouponTick(keyA.toId(), keyB.toId());
+        (Tick bidTick, Tick askTick) = strategy.calculateCouponTick(key);
         assertEq(Tick.unwrap(bidTick), -57340);
         assertEq(Tick.unwrap(askTick), 53363);
         assertEq(FixedPointMathLib.mulDivDown(bidTick.toPrice(), 1e18, 1 << 128), 3235042158527404);

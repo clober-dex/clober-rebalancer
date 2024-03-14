@@ -24,11 +24,18 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
 
-    mapping(bytes32 key => IStrategy) private _strategy;
-    mapping(bytes32 key => uint256 amount) private _reserveA;
-    mapping(bytes32 key => uint256 amount) private _reserveB;
-    mapping(bytes32 key => OrderId[]) private _orderListA;
-    mapping(bytes32 key => OrderId[]) private _orderListB;
+    struct Pool {
+        BookId bookIdA;
+        BookId bookIdB;
+        IStrategy strategy;
+        uint256 reserveA;
+        uint256 reserveB;
+        OrderId[] orderListA;
+        OrderId[] orderListB;
+    }
+
+    mapping(bytes32 key => Pool) private _pools;
+    mapping(BookId => BookId) private _bookPair;
     mapping(Currency currency => uint256 amount) private _readyToWithdraw;
 
     modifier selfOnly() {
@@ -55,29 +62,33 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         return this.beforeMake.selector;
     }
 
-    function beforeTake(address, IBookManager.TakeParams calldata, bytes calldata)
+    function beforeTake(address, IBookManager.TakeParams calldata params, bytes calldata)
         external
         override
         onlyBookManager
         returns (bytes4)
     {
-        revert HookNotImplemented();
+        BookId bookId = params.key.toId();
+        BookId pairId = _bookPair[bookId];
+        if (BookId.unwrap(pairId) == 0) revert InvalidBookPair();
+        return this.beforeTake.selector;
     }
 
-    function getLiquidity(BookId bookIdA, BookId bookIdB)
-        public
-        view
-        returns (uint256 liquidityA, uint256 liquidityB)
-    {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
-        liquidityA = _reserveA[key];
-        liquidityB = _reserveB[key];
+    function getBookPairs(bytes32 key) external view returns (BookId, BookId) {
+        Pool storage pool = _pools[key];
+        return (pool.bookIdA, pool.bookIdB);
+    }
 
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
+    function getLiquidity(bytes32 key) public view returns (uint256 liquidityA, uint256 liquidityB) {
+        Pool storage pool = _pools[key];
+        liquidityA = pool.reserveA;
+        liquidityB = pool.reserveB;
 
-        OrderId[] memory orderListA = _orderListA[key];
-        OrderId[] memory orderListB = _orderListB[key];
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
+
+        OrderId[] memory orderListA = pool.orderListA;
+        OrderId[] memory orderListB = pool.orderListB;
 
         for (uint256 i; i < orderListA.length; ++i) {
             (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyA, orderListA[i]);
@@ -111,25 +122,29 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
         external
         onlyOwner
+        returns (bytes32)
     {
-        bookManager.lock(address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy));
+        return abi.decode(
+            bookManager.lock(address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy)),
+            (bytes32)
+        );
     }
 
-    function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external onlyOwner {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+    function add(bytes32 key, uint256 amountA, uint256 amountB) external onlyOwner {
+        Pool storage pool = _pools[key];
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
         _readyToWithdraw[bookKeyA.quote] -= amountA;
         _readyToWithdraw[bookKeyA.base] -= amountB;
-        _reserveA[key] += amountA;
-        _reserveB[key] += amountB;
+        pool.reserveA += amountA;
+        pool.reserveB += amountB;
     }
 
     function cancelOrders(OrderId orderId, uint64 to) external onlyOwner {
         bookManager.lock(address(this), abi.encodeWithSelector(this._cancelOrder.selector, orderId, to));
     }
 
-    function remove(BookId bookIdA, BookId bookIdB) external onlyOwner {
-        bookManager.lock(address(this), abi.encodeWithSelector(this._remove.selector, bookIdA, bookIdB));
+    function remove(bytes32 key) external onlyOwner {
+        bookManager.lock(address(this), abi.encodeWithSelector(this._remove.selector, key));
     }
 
     function deposit(Currency currency, uint256 amount) external payable {
@@ -145,9 +160,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         currency.transfer(to, amount);
     }
 
-    function rebalance(BookId bookIdA, BookId bookIdB) public {
+    function rebalance(bytes32 key) public {
         // todo: check last block number and only allow rebalance every n blocks
-        bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, bookIdA, bookIdB));
+        bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, key));
     }
 
     function lockAcquired(address lockCaller, bytes calldata data) external returns (bytes memory) {
@@ -171,58 +186,62 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     function _open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
         public
         selfOnly
+        returns (bytes32 key)
     {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         bookManager.open(bookKeyA, "");
         bookManager.open(bookKeyB, "");
         BookId bookIdA = bookKeyA.toId();
         BookId bookIdB = bookKeyB.toId();
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
-        _strategy[key] = IStrategy(strategy);
+        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
+
+        key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+        _pools[key].bookIdA = bookIdA;
+        _pools[key].bookIdB = bookIdB;
+        _pools[key].strategy = IStrategy(strategy);
+        _bookPair[bookIdA] = bookIdB;
+        _bookPair[bookIdB] = bookIdA;
     }
 
-    function _rebalance(BookId bookIdA, BookId bookIdB) public selfOnly {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
+    function _rebalance(bytes32 key) public selfOnly {
+        Pool storage pool = _pools[key];
 
-        uint256 amountA = _reserveA[key];
-        uint256 amountB = _reserveB[key];
-
-        OrderId[] storage orderListA = _orderListA[key];
-        OrderId[] storage orderListB = _orderListB[key];
+        uint256 amountA = pool.reserveA;
+        uint256 amountB = pool.reserveB;
 
         // Remove all orders
-        (uint256 canceledAmount, uint256 claimedAmount) = _clearOrders(orderListA);
+        (uint256 canceledAmount, uint256 claimedAmount) = _clearOrders(pool.orderListA);
         amountA += canceledAmount;
         amountB += claimedAmount;
-        (canceledAmount, claimedAmount) = _clearOrders(orderListB);
+        (canceledAmount, claimedAmount) = _clearOrders(pool.orderListB);
         amountA += claimedAmount;
         amountB += canceledAmount;
 
         // Compute allocation
         (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
-            _strategy[key].computeAllocation(bookIdA, amountA, bookIdB, amountB);
+            pool.strategy.computeAllocation(pool.bookIdA, amountA, pool.bookIdB, amountB);
 
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
-        _setLiquidity(bookKeyA, liquidityA, orderListA);
-        _setLiquidity(bookKeyB, liquidityB, orderListB);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
+        _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
+        _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
-        _reserveA[key] = _settleCurrency(bookKeyA.quote, amountA);
-        _reserveB[key] = _settleCurrency(bookKeyA.base, amountB);
+        pool.reserveA = _settleCurrency(bookKeyA.quote, amountA);
+        pool.reserveB = _settleCurrency(bookKeyA.base, amountB);
     }
 
-    function _remove(BookId bookIdA, BookId bookIdB) public selfOnly {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
+    function _remove(bytes32 key) public selfOnly {
+        Pool storage pool = _pools[key];
 
         // Remove all orders
-        _clearOrders(_orderListA[key]);
-        _clearOrders(_orderListB[key]);
+        _clearOrders(pool.orderListA);
+        _clearOrders(pool.orderListB);
 
-        IBookManager.BookKey memory bookKey = bookManager.getBookKey(bookIdA);
-        _reserveA[key] = 0;
-        _reserveB[key] = 0;
-        _readyToWithdraw[bookKey.quote] += _settleCurrency(bookKey.quote, _reserveA[key]);
-        _readyToWithdraw[bookKey.base] += _settleCurrency(bookKey.base, _reserveB[key]);
+        IBookManager.BookKey memory bookKey = bookManager.getBookKey(pool.bookIdA);
+        _readyToWithdraw[bookKey.quote] += _settleCurrency(bookKey.quote, pool.reserveA);
+        _readyToWithdraw[bookKey.base] += _settleCurrency(bookKey.base, pool.reserveB);
+        pool.reserveA = 0;
+        pool.reserveB = 0;
     }
 
     function _cancelOrder(OrderId orderId, uint64 to) public selfOnly {
@@ -289,13 +308,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         return liquidity;
     }
 
-    function _encodeKey(BookId bookIdA, BookId bookIdB) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(bookIdA, bookIdB));
-    }
-
-    function setStrategy(BookId bookIdA, BookId bookIdB, address strategy) external onlyOwner {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
-        _strategy[key] = IStrategy(strategy);
+    function setStrategy(bytes32 key, address strategy) external onlyOwner {
+        _pools[key].strategy = IStrategy(strategy);
     }
 
     receive() external payable {}

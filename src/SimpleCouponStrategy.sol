@@ -46,8 +46,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         }
     }
 
-    function calculateCouponTick(BookId bookIdA, BookId bookIdB) public view returns (Tick bidTick, Tick askTick) {
-        bytes32 key = encodeKey(bookIdA, bookIdB);
+    function calculateCouponTick(bytes32 key) public view returns (Tick bidTick, Tick askTick) {
         CouponStrategy memory strategy = _strategy[key];
         bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32);
         askTick = Tick.wrap(
@@ -63,7 +62,12 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         bids = new Liquidity[](1);
         asks = new Liquidity[](1);
 
-        (Tick bidTick, Tick askTick) = calculateCouponTick(bookIdA, bookIdB);
+        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) {
+            (bookIdA, bookIdB, amountA, amountB) = (bookIdB, bookIdA, amountB, amountA);
+        }
+        bytes32 key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+
+        (Tick bidTick, Tick askTick) = calculateCouponTick(key);
 
         bids[0] =
             Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookManager.getBookKey(bookIdA).unit)});
@@ -71,19 +75,11 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
             Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookManager.getBookKey(bookIdB).unit)});
     }
 
-    function setCouponStrategy(BookId bookIdA, BookId bookIdB, Epoch epoch, uint96 bidRate, uint96 askRate)
-        external
-        onlyOwner
-    {
-        bytes32 key = encodeKey(bookIdA, bookIdB);
+    function setCouponStrategy(bytes32 key, Epoch epoch, uint96 bidRate, uint96 askRate) external onlyOwner {
         _strategy[key] = CouponStrategy({epoch: epoch, bidRate: bidRate, askRate: askRate});
     }
 
-    function getCouponStrategy(BookId bookIdA, BookId bookIdB) external view returns (CouponStrategy memory) {
-        return _strategy[encodeKey(bookIdA, bookIdB)];
-    }
-
-    function encodeKey(BookId bookIdA, BookId bookIdB) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(bookIdA, bookIdB));
+    function getCouponStrategy(bytes32 key) external view returns (CouponStrategy memory) {
+        return _strategy[key];
     }
 }

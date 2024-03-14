@@ -15,25 +15,25 @@ interface IRebalancer {
     error LockFailure();
     error InvalidMaker();
 
-    function getLiquidity(BookId bookIdA, BookId bookIdB)
-        external
-        view
-        returns (uint256 liquidityA, uint256 liquidityB);
+    function getBookPairs(bytes32 key) external view returns (BookId bookIdA, BookId bookIdB);
+
+    function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
 
     function open(IBookManager.BookKey calldata bookIdA, IBookManager.BookKey calldata bookIdB, address strategy)
-        external;
+        external
+        returns (bytes32 key);
 
-    function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external;
+    function add(bytes32 key, uint256 amountA, uint256 amountB) external;
 
     function cancelOrders(OrderId orderId, uint64 to) external;
 
-    function remove(BookId bookIdA, BookId bookIdB) external;
+    function remove(bytes32 key) external;
 
     function deposit(Currency currency, uint256 amount) external payable;
 
     function withdraw(Currency currency, address to, uint256 amount) external;
 
-    function rebalance(BookId bookIdA, BookId bookIdB) external;
+    function rebalance(bytes32 key) external;
 
-    function setStrategy(BookId bookIdA, BookId bookIdB, address strategy) external;
+    function setStrategy(bytes32 key, address strategy) external;
 }
