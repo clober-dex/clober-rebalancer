@@ -22,7 +22,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
 
-    mapping(bytes32 key => address strategy) private _strategy;
+    mapping(bytes32 key => IStrategy) private _strategy;
     mapping(bytes32 key => uint256 amount) private _reserveA;
     mapping(bytes32 key => uint256 amount) private _reserveB;
     mapping(bytes32 key => OrderId[]) private _orderListA;
@@ -120,7 +120,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
-        _strategy[key] = strategy;
+        _strategy[key] = IStrategy(strategy);
     }
 
     function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external onlyOwner {
@@ -195,7 +195,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
 
         // Compute allocation
         (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
-            IStrategy(_strategy[key]).computeAllocation(bookIdA, amountA, bookIdB, amountB);
+            _strategy[key].computeAllocation(bookIdA, amountA, bookIdB, amountB);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
