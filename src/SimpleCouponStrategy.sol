@@ -39,7 +39,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         uint256 thisTimestamp = block.timestamp;
         price = FixedPointMathLib.rpow(PRECISION + ratePerSecond, epoch.endTime() - thisTimestamp, PRECISION);
         if (epoch > current) {
-            price -= FixedPointMathLib.rpow(PRECISION + ratePerSecond, epoch.sub(1).endTime() - thisTimestamp, PRECISION);
+            price -=
+                FixedPointMathLib.rpow(PRECISION + ratePerSecond, epoch.sub(1).endTime() - thisTimestamp, PRECISION);
         } else {
             price -= PRECISION;
         }
@@ -48,8 +49,10 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     function calculateCouponTick(BookId bookIdA, BookId bookIdB) public view returns (Tick bidTick, Tick askTick) {
         bytes32 key = encodeKey(bookIdA, bookIdB);
         CouponStrategy memory strategy = _strategy[key];
-        bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2**32);
-        askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2**32)));
+        bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32);
+        askTick = Tick.wrap(
+            -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2 ** 32))
+        );
     }
 
     function computeAllocation(BookId bookIdA, uint256 amountA, BookId bookIdB, uint256 amountB)

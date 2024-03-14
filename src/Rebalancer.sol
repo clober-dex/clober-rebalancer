@@ -146,11 +146,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         uint256 amountA = _reserveA[key];
         uint256 amountB = _reserveB[key];
 
+        OrderId[] storage orderListA = _orderListA[key];
+        OrderId[] storage orderListB = _orderListB[key];
+
         // Remove all orders
-        (uint256 canceledAmount, uint256 claimedAmount) = _clearOrders(_orderListA[key]);
+        (uint256 canceledAmount, uint256 claimedAmount) = _clearOrders(orderListA);
         amountA += canceledAmount;
         amountB += claimedAmount;
-        (canceledAmount, claimedAmount) = _clearOrders(_orderListB[key]);
+        (canceledAmount, claimedAmount) = _clearOrders(orderListB);
         amountA += claimedAmount;
         amountB += canceledAmount;
 
@@ -160,20 +163,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
 
         IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
         IBookManager.BookKey memory bookKeyB = _bookManager.getBookKey(bookIdB);
-        OrderId[] storage orderListA = _orderListA[key];
-        OrderId[] storage orderListB = _orderListB[key];
-        assembly {
-            sstore(orderListA.slot, mload(liquidityA))
-            sstore(orderListB.slot, mload(liquidityB))
-        }
         _setLiquidity(bookKeyA, liquidityA, orderListA);
         _setLiquidity(bookKeyB, liquidityB, orderListB);
 
-        Currency currencyA = bookKeyA.quote;
-        Currency currencyB = bookKeyA.base;
-
-        _reserveA[key] = _settleCurrency(currencyA, amountA);
-        _reserveB[key] = _settleCurrency(currencyB, amountB);
+        _reserveA[key] = _settleCurrency(bookKeyA.quote, amountA);
+        _reserveB[key] = _settleCurrency(bookKeyA.base, amountB);
     }
 
     function _remove(BookId bookIdA, BookId bookIdB) public selfOnly {
@@ -182,10 +176,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         // Remove all orders
         _clearOrders(_orderListA[key]);
         _clearOrders(_orderListB[key]);
-        assembly {
-            sstore(_orderListA.slot, 0)
-            sstore(_orderListB.slot, 0)
-        }
 
         IBookManager.BookKey memory bookKey = _bookManager.getBookKey(bookIdA);
         _reserveA[key] = 0;
@@ -201,9 +191,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         _readyToWithdraw[quote] = _settleCurrency(quote, _readyToWithdraw[quote]);
     }
 
-    function _clearOrders(OrderId[] memory orderIds) internal returns (uint256 canceledAmount, uint256 claimedAmount) {
-        for (uint256 i = 0; i < orderIds.length; ++i) {
-            OrderId orderId = orderIds[i];
+    function _clearOrders(OrderId[] storage orderIds)
+        internal
+        returns (uint256 canceledAmount, uint256 claimedAmount)
+    {
+        OrderId[] memory mOrderIds = orderIds;
+        for (uint256 i = 0; i < mOrderIds.length; ++i) {
+            OrderId orderId = mOrderIds[i];
             IBookManager.OrderInfo memory orderInfo = _bookManager.getOrder(orderId);
             if (orderInfo.claimable > 0) {
                 claimedAmount += _bookManager.claim(orderId, "");
@@ -212,6 +206,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
                 canceledAmount += _bookManager.cancel(IBookManager.CancelParams({id: orderId, to: 0}), "");
             }
         }
+        assembly {
+            sstore(orderIds.slot, 0)
+        }
     }
 
     function _setLiquidity(
@@ -219,6 +216,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         IStrategy.Liquidity[] memory liquidity,
         OrderId[] storage orderIds
     ) internal {
+        assembly {
+            sstore(orderIds.slot, mload(liquidity))
+        }
         for (uint256 i = 0; i < liquidity.length; ++i) {
             (OrderId orderId,) = _bookManager.make(
                 IBookManager.MakeParams({
