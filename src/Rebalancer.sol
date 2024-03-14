@@ -13,15 +13,14 @@ import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolic
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
+import {BaseHook, Hooks} from "clober-dex/v2-core/hooks/BaseHook.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using OrderIdLibrary for OrderId;
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
-
-    IBookManager private immutable _bookManager;
 
     mapping(bytes32 key => address strategy) private _strategy;
     mapping(bytes32 key => uint256 amount) private _reserveA;
@@ -35,8 +34,41 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         _;
     }
 
-    constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
-        _bookManager = bookManager_;
+    constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) BaseHook(bookManager_) {}
+
+    function getHooksCalls() public pure override returns (Hooks.Permissions memory) {
+        Hooks.Permissions memory permissions;
+        permissions.afterOpen = true;
+        permissions.beforeMake = true;
+        permissions.beforeTake = true;
+        return permissions;
+    }
+
+    function afterOpen(address, IBookManager.BookKey calldata, bytes calldata)
+        external
+        override
+        onlyBookManager
+        returns (bytes4)
+    {
+        revert HookNotImplemented();
+    }
+
+    function beforeMake(address, IBookManager.MakeParams calldata, bytes calldata)
+        external
+        override
+        onlyBookManager
+        returns (bytes4)
+    {
+        revert HookNotImplemented();
+    }
+
+    function beforeTake(address, IBookManager.TakeParams calldata, bytes calldata)
+        external
+        override
+        onlyBookManager
+        returns (bytes4)
+    {
+        revert HookNotImplemented();
     }
 
     function getLiquidity(BookId bookIdA, BookId bookIdB)
@@ -48,8 +80,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         liquidityA = _reserveA[key];
         liquidityB = _reserveB[key];
 
-        IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = _bookManager.getBookKey(bookIdB);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
 
         OrderId[] memory orderListA = _orderListA[key];
         OrderId[] memory orderListB = _orderListB[key];
@@ -71,7 +103,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         view
         returns (uint256 cancelable, uint256 claimable)
     {
-        IBookManager.OrderInfo memory orderInfo = _bookManager.getOrder(orderId);
+        IBookManager.OrderInfo memory orderInfo = bookManager.getOrder(orderId);
         cancelable = uint256(orderInfo.open) * bookKey.unit;
         claimable = orderId.getTick().quoteToBase(uint256(orderInfo.claimable) * bookKey.unit, false);
         if (bookKey.makerPolicy.usesQuote()) {
@@ -85,15 +117,15 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
 
     function registerStrategy(BookId bookIdA, BookId bookIdB, address strategy) external onlyOwner {
         bytes32 key = _encodeKey(bookIdA, bookIdB);
-        IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = _bookManager.getBookKey(bookIdB);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         _strategy[key] = strategy;
     }
 
     function add(BookId bookIdA, BookId bookIdB, uint256 amountA, uint256 amountB) external onlyOwner {
         bytes32 key = _encodeKey(bookIdA, bookIdB);
-        IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
         _readyToWithdraw[bookKeyA.quote] -= amountA;
         _readyToWithdraw[bookKeyA.base] -= amountB;
         _reserveA[key] += amountA;
@@ -101,11 +133,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     }
 
     function cancelOrders(OrderId orderId, uint64 to) external onlyOwner {
-        _bookManager.lock(address(this), abi.encodeWithSelector(this._cancelOrder.selector, orderId, to));
+        bookManager.lock(address(this), abi.encodeWithSelector(this._cancelOrder.selector, orderId, to));
     }
 
     function remove(BookId bookIdA, BookId bookIdB) external onlyOwner {
-        _bookManager.lock(address(this), abi.encodeWithSelector(this._remove.selector, bookIdA, bookIdB));
+        bookManager.lock(address(this), abi.encodeWithSelector(this._remove.selector, bookIdA, bookIdB));
     }
 
     function deposit(Currency currency, uint256 amount) external payable {
@@ -121,12 +153,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         currency.transfer(to, amount);
     }
 
-    function rebalance(BookId bookIdA, BookId bookIdB) external {
-        _bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, bookIdA, bookIdB));
+    function rebalance(BookId bookIdA, BookId bookIdB) public {
+        // todo: check last block number and only allow rebalance every n blocks
+        bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, bookIdA, bookIdB));
     }
 
     function lockAcquired(address lockCaller, bytes calldata data) external returns (bytes memory) {
-        if (msg.sender != address(_bookManager)) {
+        if (msg.sender != address(bookManager)) {
             revert InvalidLockAcquiredSender();
         }
         if (lockCaller != address(this)) {
@@ -164,8 +197,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
             IStrategy(_strategy[key]).computeAllocation(bookIdA, amountA, bookIdB, amountB);
 
-        IBookManager.BookKey memory bookKeyA = _bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = _bookManager.getBookKey(bookIdB);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
         _setLiquidity(bookKeyA, liquidityA, orderListA);
         _setLiquidity(bookKeyB, liquidityB, orderListB);
 
@@ -180,7 +213,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         _clearOrders(_orderListA[key]);
         _clearOrders(_orderListB[key]);
 
-        IBookManager.BookKey memory bookKey = _bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKey = bookManager.getBookKey(bookIdA);
         _reserveA[key] = 0;
         _reserveB[key] = 0;
         _readyToWithdraw[bookKey.quote] += _settleCurrency(bookKey.quote, _reserveA[key]);
@@ -188,9 +221,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     }
 
     function _cancelOrder(OrderId orderId, uint64 to) public selfOnly {
-        _bookManager.cancel(IBookManager.CancelParams({id: orderId, to: to}), "");
+        bookManager.cancel(IBookManager.CancelParams({id: orderId, to: to}), "");
 
-        Currency quote = _bookManager.getBookKey(orderId.getBookId()).quote;
+        Currency quote = bookManager.getBookKey(orderId.getBookId()).quote;
         _readyToWithdraw[quote] = _settleCurrency(quote, _readyToWithdraw[quote]);
     }
 
@@ -201,12 +234,12 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
         OrderId[] memory mOrderIds = orderIds;
         for (uint256 i = 0; i < mOrderIds.length; ++i) {
             OrderId orderId = mOrderIds[i];
-            IBookManager.OrderInfo memory orderInfo = _bookManager.getOrder(orderId);
+            IBookManager.OrderInfo memory orderInfo = bookManager.getOrder(orderId);
             if (orderInfo.claimable > 0) {
-                claimedAmount += _bookManager.claim(orderId, "");
+                claimedAmount += bookManager.claim(orderId, "");
             }
             if (orderInfo.open > 0) {
-                canceledAmount += _bookManager.cancel(IBookManager.CancelParams({id: orderId, to: 0}), "");
+                canceledAmount += bookManager.cancel(IBookManager.CancelParams({id: orderId, to: 0}), "");
             }
         }
         assembly {
@@ -223,7 +256,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
             sstore(orderIds.slot, mload(liquidity))
         }
         for (uint256 i = 0; i < liquidity.length; ++i) {
-            (OrderId orderId,) = _bookManager.make(
+            (OrderId orderId,) = bookManager.make(
                 IBookManager.MakeParams({
                     key: bookKey,
                     tick: liquidity[i].tick,
@@ -237,15 +270,15 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step {
     }
 
     function _settleCurrency(Currency currency, uint256 liquidity) internal returns (uint256) {
-        _bookManager.settle(currency);
+        bookManager.settle(currency);
 
-        int256 delta = _bookManager.currencyDelta(address(this), currency);
+        int256 delta = bookManager.currencyDelta(address(this), currency);
         if (delta > 0) {
-            _bookManager.withdraw(currency, address(this), uint256(delta));
+            bookManager.withdraw(currency, address(this), uint256(delta));
             liquidity += uint256(delta);
         } else {
-            currency.transfer(address(_bookManager), uint256(-delta));
-            _bookManager.settle(currency);
+            currency.transfer(address(bookManager), uint256(-delta));
+            bookManager.settle(currency);
             liquidity -= uint256(-delta);
         }
         return liquidity;
