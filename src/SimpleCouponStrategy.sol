@@ -16,7 +16,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     using TickLibrary for Tick;
     using EpochLibrary for Epoch;
 
-    IBookManager private immutable _bookManager;
+    IBookManager public immutable bookManager;
     uint256 public constant PRECISION = 1 << 96;
 
     struct CouponStrategy {
@@ -28,7 +28,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     mapping(bytes32 key => CouponStrategy) private _strategy;
 
     constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
-        _bookManager = bookManager_;
+        bookManager = bookManager_;
     }
 
     function calculateCouponPrice(Epoch epoch, uint128 ratePerSecond) public view returns (uint256 price) {
@@ -46,7 +46,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     }
 
     function calculateCouponTick(BookId bookIdA, BookId bookIdB) public view returns (Tick bidTick, Tick askTick) {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
+        bytes32 key = encodeKey(bookIdA, bookIdB);
         CouponStrategy memory strategy = _strategy[key];
         bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2**32);
         askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2**32)));
@@ -63,24 +63,24 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         (Tick bidTick, Tick askTick) = calculateCouponTick(bookIdA, bookIdB);
 
         bids[0] =
-            Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / _bookManager.getBookKey(bookIdA).unit)});
+            Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookManager.getBookKey(bookIdA).unit)});
         asks[0] =
-            Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / _bookManager.getBookKey(bookIdB).unit)});
+            Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookManager.getBookKey(bookIdB).unit)});
     }
 
     function setCouponStrategy(BookId bookIdA, BookId bookIdB, Epoch epoch, uint128 bidRate, uint128 askRate)
         external
         onlyOwner
     {
-        bytes32 key = _encodeKey(bookIdA, bookIdB);
+        bytes32 key = encodeKey(bookIdA, bookIdB);
         _strategy[key] = CouponStrategy({epoch: epoch, bidRate: bidRate, askRate: askRate});
     }
 
     function getCouponStrategy(BookId bookIdA, BookId bookIdB) external view returns (CouponStrategy memory) {
-        return _strategy[_encodeKey(bookIdA, bookIdB)];
+        return _strategy[encodeKey(bookIdA, bookIdB)];
     }
 
-    function _encodeKey(BookId bookIdA, BookId bookIdB) internal pure returns (bytes32) {
+    function encodeKey(BookId bookIdA, BookId bookIdB) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(bookIdA, bookIdB));
     }
 }
