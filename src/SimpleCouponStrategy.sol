@@ -17,12 +17,12 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     using EpochLibrary for Epoch;
 
     IBookManager private immutable _bookManager;
-    uint256 private constant _PRECISION = 1e18;
+    uint256 public constant PRECISION = 1 << 96;
 
     struct CouponStrategy {
         Epoch epoch;
-        uint64 bidRate;
-        uint64 askRate;
+        uint128 bidRate;
+        uint128 askRate;
     }
 
     mapping(bytes32 key => CouponStrategy) private _strategy;
@@ -31,25 +31,25 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         _bookManager = bookManager_;
     }
 
-    function calculateCouponPrice(Epoch epoch, uint256 ratePerSecond) public view returns (uint256 price) {
+    function calculateCouponPrice(Epoch epoch, uint128 ratePerSecond) public view returns (uint256 price) {
         Epoch current = EpochLibrary.current();
         if (current > epoch) {
             return 0;
         }
         uint256 thisTimestamp = block.timestamp;
-        price = FixedPointMathLib.rpow(_PRECISION + ratePerSecond, epoch.endTime() - thisTimestamp, _PRECISION);
+        price = FixedPointMathLib.rpow(PRECISION + ratePerSecond, epoch.endTime() - thisTimestamp, PRECISION);
         if (epoch > current) {
-            price -= FixedPointMathLib.rpow(_PRECISION + ratePerSecond, epoch.sub(1).endTime() - thisTimestamp, _PRECISION);
+            price -= FixedPointMathLib.rpow(PRECISION + ratePerSecond, epoch.sub(1).endTime() - thisTimestamp, PRECISION);
         } else {
-            price -= _PRECISION;
+            price -= PRECISION;
         }
     }
 
     function calculateCouponTick(BookId bookIdA, BookId bookIdB) public view returns (Tick bidTick, Tick askTick) {
         bytes32 key = _encodeKey(bookIdA, bookIdB);
         CouponStrategy memory strategy = _strategy[key];
-        bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate));
-        askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate))));
+        bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2**32);
+        askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2**32)));
     }
 
     function computeAllocation(BookId bookIdA, uint256 amountA, BookId bookIdB, uint256 amountB)
@@ -68,7 +68,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
             Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / _bookManager.getBookKey(bookIdB).unit)});
     }
 
-    function setCouponStrategy(BookId bookIdA, BookId bookIdB, Epoch epoch, uint64 bidRate, uint64 askRate)
+    function setCouponStrategy(BookId bookIdA, BookId bookIdB, Epoch epoch, uint128 bidRate, uint128 askRate)
         external
         onlyOwner
     {
