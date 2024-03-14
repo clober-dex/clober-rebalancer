@@ -21,8 +21,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
 
     struct CouponStrategy {
         Epoch epoch;
-        uint128 bidRate;
-        uint128 askRate;
+        uint96 bidRate;
+        uint96 askRate;
     }
 
     mapping(bytes32 key => CouponStrategy) private _strategy;
@@ -31,7 +31,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         bookManager = bookManager_;
     }
 
-    function calculateCouponPrice(Epoch epoch, uint128 ratePerSecond) public view returns (uint256 price) {
+    function calculateCouponPrice(Epoch epoch, uint96 ratePerSecond) public view returns (uint256 price) {
         Epoch current = EpochLibrary.current();
         if (current > epoch) {
             return 0;
@@ -68,7 +68,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
             Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookManager.getBookKey(bookIdB).unit)});
     }
 
-    function setCouponStrategy(BookId bookIdA, BookId bookIdB, Epoch epoch, uint128 bidRate, uint128 askRate)
+    function setCouponStrategy(BookId bookIdA, BookId bookIdB, Epoch epoch, uint96 bidRate, uint96 askRate)
         external
         onlyOwner
     {
