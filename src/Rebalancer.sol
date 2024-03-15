@@ -312,9 +312,5 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         return liquidity;
     }
 
-    function setStrategy(bytes32 key, address strategy) external onlyOwner {
-        _pools[key].strategy = IStrategy(strategy);
-    }
-
     receive() external payable {}
 }

@@ -34,6 +34,4 @@ interface IRebalancer {
     function withdraw(Currency currency, address to, uint256 amount) external;
 
     function rebalance(bytes32 key) external;
-
-    function setStrategy(bytes32 key, address strategy) external;
 }
