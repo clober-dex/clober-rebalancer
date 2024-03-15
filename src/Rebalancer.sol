@@ -11,10 +11,11 @@ import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.s
 import {OrderId, OrderIdLibrary} from "clober-dex/v2-core/libraries/OrderId.sol";
 import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
+import {BaseHook, Hooks} from "clober-dex/v2-core/hooks/BaseHook.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
-import {BaseHook, Hooks} from "clober-dex/v2-core/hooks/BaseHook.sol";
 
 contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     using BookIdLibrary for IBookManager.BookKey;
@@ -321,6 +322,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
             liquidity -= uint256(-delta);
         }
         return liquidity;
+    }
+
+    function setStrategy(bytes32 key, address strategy) external onlyOwner {
+        _pools[key].strategy = IStrategy(strategy);
+    }
+
+    function setRebalanceThreshold(bytes32 key, uint32 rebalanceThreshold) external onlyOwner {
+        _pools[key].rebalanceThreshold = rebalanceThreshold;
     }
 
     receive() external payable {}
