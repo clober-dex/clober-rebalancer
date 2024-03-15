@@ -28,6 +28,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         BookId bookIdA;
         BookId bookIdB;
         IStrategy strategy;
+        uint32 rebalanceThreshold;
+        uint64 lastRebalanceTimestamp;
         uint256 reserveA;
         uint256 reserveB;
         OrderId[] orderListA;
@@ -123,13 +125,17 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         }
     }
 
-    function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        external
-        onlyOwner
-        returns (bytes32)
-    {
+    function open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        address strategy,
+        uint32 rebalanceThreshold
+    ) external onlyOwner returns (bytes32) {
         return abi.decode(
-            bookManager.lock(address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy)),
+            bookManager.lock(
+                address(this),
+                abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy, rebalanceThreshold)
+            ),
             (bytes32)
         );
     }
@@ -165,7 +171,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     }
 
     function rebalance(bytes32 key) public {
-        // todo: check last block number and only allow rebalance every n blocks
         bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, key));
     }
 
@@ -187,11 +192,12 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         }
     }
 
-    function _open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        public
-        selfOnly
-        returns (bytes32 key)
-    {
+    function _open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        address strategy,
+        uint32 rebalanceThreshold
+    ) public selfOnly returns (bytes32 key) {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         bookManager.open(bookKeyA, "");
         bookManager.open(bookKeyB, "");
@@ -203,12 +209,15 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         _pools[key].bookIdA = bookIdA;
         _pools[key].bookIdB = bookIdB;
         _pools[key].strategy = IStrategy(strategy);
+        _pools[key].rebalanceThreshold = rebalanceThreshold;
         _bookPair[bookIdA] = bookIdB;
         _bookPair[bookIdB] = bookIdA;
     }
 
     function _rebalance(bytes32 key) public selfOnly {
         Pool storage pool = _pools[key];
+        if (pool.strategy == IStrategy(address(0))) revert InvalidBookPair();
+        if (block.timestamp < pool.lastRebalanceTimestamp + pool.rebalanceThreshold) return;
 
         uint256 amountA = pool.reserveA;
         uint256 amountB = pool.reserveB;
@@ -232,6 +241,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
 
         pool.reserveA = _settleCurrency(bookKeyA.quote, amountA);
         pool.reserveB = _settleCurrency(bookKeyA.base, amountB);
+
+        pool.lastRebalanceTimestamp = uint64(block.timestamp);
     }
 
     function _remove(bytes32 key) public selfOnly {

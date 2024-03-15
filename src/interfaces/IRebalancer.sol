@@ -19,9 +19,12 @@ interface IRebalancer {
 
     function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
 
-    function open(IBookManager.BookKey calldata bookIdA, IBookManager.BookKey calldata bookIdB, address strategy)
-        external
-        returns (bytes32 key);
+    function open(
+        IBookManager.BookKey calldata bookIdA,
+        IBookManager.BookKey calldata bookIdB,
+        address strategy,
+        uint32 rebalanceThreshold
+    ) external returns (bytes32 key);
 
     function add(bytes32 key, uint256 amountA, uint256 amountB) external;
 
