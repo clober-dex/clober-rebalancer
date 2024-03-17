@@ -11,6 +11,8 @@ interface IStrategy {
         uint64 rawAmount;
     }
 
+    function convertAmount(BookId bookIdA, BookId bookIdB, uint256 amount, bool aToB) external view returns (uint256);
+
     function computeAllocation(BookId bookIdA, uint256 amountA, BookId bookIdB, uint256 amountB)
         external
         view

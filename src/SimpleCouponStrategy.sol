@@ -54,6 +54,21 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         );
     }
 
+    function convertAmount(BookId bookIdA, BookId bookIdB, uint256 amount, bool aToB) external view returns (uint256) {
+        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
+        bytes32 key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+        CouponStrategy memory strategy = _strategy[key];
+        if (aToB) {
+            return TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32).baseToQuote(
+                amount, false
+            );
+        } else {
+            return Tick.wrap(
+                -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2 ** 32))
+            ).baseToQuote(amount, false);
+        }
+    }
+
     function computeAllocation(BookId bookIdA, uint256 amountA, BookId bookIdB, uint256 amountB)
         external
         view

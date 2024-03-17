@@ -65,9 +65,15 @@ contract SimpleCouponStrategyTest is Test {
         Epoch current = EpochLibrary.current();
 
         assertEq(strategy.calculateCouponPrice(current.sub(1), rate), 0);
-        assertEq(strategy.calculateCouponPrice(current, rate), 158969348697323155774989773);
-        assertEq(strategy.calculateCouponPrice(current.add(1), rate), 256326894903603305869921641);
-        assertEq(strategy.calculateCouponPrice(current.add(11), rate), 247208994008569190377949630);
+        uint256 p = strategy.calculateCouponPrice(current, rate);
+        assertEq(p, 158969348697323155774989773);
+        assertEq(FixedPointMathLib.mulDivDown(p, 1e18, 1 << 96), 2006475269052240);
+        p = strategy.calculateCouponPrice(current.add(1), rate);
+        assertEq(p, 256326894903603305869921641);
+        assertEq(FixedPointMathLib.mulDivDown(p, 1e18, 1 << 96), 3235300261538362);
+        p = strategy.calculateCouponPrice(current.add(11), rate);
+        assertEq(p, 247208994008569190377949630);
+        assertEq(FixedPointMathLib.mulDivDown(p, 1e18, 1 << 96), 3120216172678009);
 
         uint256 sum;
         for (uint16 i; i < 13; ++i) {
@@ -84,5 +90,14 @@ contract SimpleCouponStrategyTest is Test {
         assertEq(Tick.unwrap(askTick), 53363);
         assertEq(FixedPointMathLib.mulDivDown(bidTick.toPrice(), 1e18, 1 << 128), 3235042158527404);
         assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 128), 207687221007653627846);
+    }
+
+    function testConvertAmount() public {
+        uint256 amount = 1e18;
+        BookId bookIdA = keyA.toId();
+        BookId bookIdB = keyB.toId();
+
+        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, true), 3235042158527404);
+        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, false), 207687221007653627846);
     }
 }
