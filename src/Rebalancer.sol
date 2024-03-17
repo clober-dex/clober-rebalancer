@@ -25,18 +25,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
 
-    struct Pool {
-        BookId bookIdA;
-        BookId bookIdB;
-        IStrategy strategy;
-        uint32 rebalanceThreshold;
-        uint64 lastRebalanceTimestamp;
-        uint256 reserveA;
-        uint256 reserveB;
-        OrderId[] orderListA;
-        OrderId[] orderListB;
-    }
-
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) private _bookPair;
     mapping(Currency currency => uint256 amount) private _readyToWithdraw;
@@ -150,7 +138,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         pool.reserveB += amountB;
     }
 
-    function cancelOrders(OrderId orderId, uint64 to) external onlyOwner {
+    function cancelOrder(OrderId orderId, uint64 to) external onlyOwner {
         bookManager.lock(address(this), abi.encodeWithSelector(this._cancelOrder.selector, orderId, to));
     }
 
