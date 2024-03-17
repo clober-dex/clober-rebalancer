@@ -16,8 +16,9 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
+import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supply {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
@@ -45,6 +46,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
 
     function beforeMake(address sender, IBookManager.MakeParams calldata, bytes calldata)
         external
+        view
         override
         onlyBookManager
         returns (bytes4)
@@ -129,38 +131,58 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         );
     }
 
-    function add(bytes32 key, uint256 amountA, uint256 amountB) external onlyOwner {
+    function mint(bytes32 key, uint256 amountA, uint256 amountB) external onlyOwner returns (uint256 mintAmount) {
+        (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
         Pool storage pool = _pools[key];
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
-        _readyToWithdraw[bookKeyA.quote] -= amountA;
-        _readyToWithdraw[bookKeyA.base] -= amountB;
+        IERC20(Currency.unwrap(bookKeyA.quote)).safeTransferFrom(msg.sender, address(this), amountA);
+        IERC20(Currency.unwrap(bookKeyA.base)).safeTransferFrom(msg.sender, address(this), amountB);
+
         pool.reserveA += amountA;
         pool.reserveB += amountB;
-    }
-
-    function cancelOrder(OrderId orderId, uint64 to) external onlyOwner {
-        bookManager.lock(address(this), abi.encodeWithSelector(this._cancelOrder.selector, orderId, to));
-    }
-
-    function remove(bytes32 key) external onlyOwner {
-        bookManager.lock(address(this), abi.encodeWithSelector(this._remove.selector, key));
-    }
-
-    function deposit(Currency currency, uint256 amount) external payable {
-        if (msg.value > 0) _readyToWithdraw[CurrencyLibrary.NATIVE] += msg.value;
-        if (!currency.isNative()) {
-            IERC20(Currency.unwrap(currency)).safeTransferFrom(msg.sender, address(this), amount);
-            _readyToWithdraw[currency] += amount;
+        uint256 supply = totalSupply[uint256(key)];
+        if (supply == 0) {
+            mintAmount = 1e18;
+        } else {
+            uint256 amountALiquidityB = amountA * liquidityB;
+            uint256 amountBLiquidityA = amountB * liquidityA;
+            if (amountALiquidityB > amountBLiquidityA) {
+                IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
+                uint256 numerator;
+                unchecked {
+                    numerator = amountALiquidityB - amountBLiquidityA;
+                }
+                int256 fee = bookKeyB.takerPolicy.calculateFee(liquidityA, false);
+                uint256 denominator = fee > 0 ? liquidityA - uint256(fee) : liquidityA + uint256(-fee);
+                denominator = pool.strategy.convertAmount(pool.bookIdA, pool.bookIdB, denominator, true) + liquidityB;
+                mintAmount = FixedPointMathLib.mulDivDown(amountA - numerator / denominator, supply, liquidityA);
+            } else {
+                uint256 numerator;
+                unchecked {
+                    numerator = amountBLiquidityA - amountALiquidityB;
+                }
+                int256 fee = bookKeyA.takerPolicy.calculateFee(liquidityB, false);
+                uint256 denominator = fee > 0 ? liquidityB - uint256(fee) : liquidityB + uint256(-fee);
+                denominator = pool.strategy.convertAmount(pool.bookIdA, pool.bookIdB, denominator, false) + liquidityA;
+                mintAmount = FixedPointMathLib.mulDivDown(amountB - numerator / denominator, supply, liquidityB);
+            }
         }
+        _mint(msg.sender, uint256(key), mintAmount);
     }
 
-    function withdraw(Currency currency, address to, uint256 amount) external onlyOwner {
-        _readyToWithdraw[currency] -= amount;
-        currency.transfer(to, amount);
+    function burn(bytes32 key, uint256 amount) external returns (uint256, uint256) {
+        return abi.decode(
+            bookManager.lock(
+                address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, msg.sender, amount)
+            ),
+            (uint256, uint256)
+        );
     }
 
     function rebalance(bytes32 key) public {
-        bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, key));
+        Pool storage pool = _pools[key];
+        if (block.timestamp < pool.lastRebalanceTimestamp + pool.rebalanceThreshold) return;
+        bookManager.lock(address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, address(0), 0));
     }
 
     function lockAcquired(address lockCaller, bytes calldata data) external returns (bytes memory) {
@@ -203,10 +225,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         _bookPair[bookIdB] = bookIdA;
     }
 
-    function _rebalance(bytes32 key) public selfOnly {
+    function _burnAndRebalance(bytes32 key, address user, uint256 burnAmount)
+        public
+        selfOnly
+        returns (uint256 withdrawalA, uint256 withdrawalB)
+    {
         Pool storage pool = _pools[key];
         if (pool.strategy == IStrategy(address(0))) revert InvalidBookPair();
-        if (block.timestamp < pool.lastRebalanceTimestamp + pool.rebalanceThreshold) return;
 
         uint256 amountA = pool.reserveA;
         uint256 amountB = pool.reserveB;
@@ -219,40 +244,31 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook {
         amountA += claimedAmount;
         amountB += canceledAmount;
 
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
+
+        if (burnAmount > 0) {
+            uint256 supply = totalSupply[uint256(key)];
+            _burn(user, uint256(key), burnAmount);
+            withdrawalA = FixedPointMathLib.mulDivDown(amountA, burnAmount, supply);
+            withdrawalB = FixedPointMathLib.mulDivDown(amountB, burnAmount, supply);
+            amountA -= withdrawalA;
+            amountB -= withdrawalB;
+            bookKeyA.quote.transfer(user, withdrawalA);
+            bookKeyA.base.transfer(user, withdrawalB);
+        }
+
         // Compute allocation
         (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
             pool.strategy.computeAllocation(pool.bookIdA, amountA, pool.bookIdB, amountB);
 
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
         _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
-        pool.reserveA = _settleCurrency(bookKeyA.quote, amountA);
-        pool.reserveB = _settleCurrency(bookKeyA.base, amountB);
+        pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA);
+        pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
 
         pool.lastRebalanceTimestamp = uint64(block.timestamp);
-    }
-
-    function _remove(bytes32 key) public selfOnly {
-        Pool storage pool = _pools[key];
-
-        // Remove all orders
-        _clearOrders(pool.orderListA);
-        _clearOrders(pool.orderListB);
-
-        IBookManager.BookKey memory bookKey = bookManager.getBookKey(pool.bookIdA);
-        _readyToWithdraw[bookKey.quote] += _settleCurrency(bookKey.quote, pool.reserveA);
-        _readyToWithdraw[bookKey.base] += _settleCurrency(bookKey.base, pool.reserveB);
-        pool.reserveA = 0;
-        pool.reserveB = 0;
-    }
-
-    function _cancelOrder(OrderId orderId, uint64 to) public selfOnly {
-        bookManager.cancel(IBookManager.CancelParams({id: orderId, to: to}), "");
-
-        Currency quote = bookManager.getBookKey(orderId.getBookId()).quote;
-        _readyToWithdraw[quote] = _settleCurrency(quote, _readyToWithdraw[quote]);
     }
 
     function _clearOrders(OrderId[] storage orderIds)

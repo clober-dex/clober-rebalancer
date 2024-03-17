@@ -39,15 +39,9 @@ interface IRebalancer {
         uint32 rebalanceThreshold
     ) external returns (bytes32 key);
 
-    function add(bytes32 key, uint256 amountA, uint256 amountB) external;
+    function mint(bytes32 key, uint256 amountA, uint256 amountB) external returns (uint256);
 
-    function cancelOrder(OrderId orderId, uint64 to) external;
-
-    function remove(bytes32 key) external;
-
-    function deposit(Currency currency, uint256 amount) external payable;
-
-    function withdraw(Currency currency, address to, uint256 amount) external;
+    function burn(bytes32 key, uint256 amount) external returns (uint256, uint256);
 
     function rebalance(bytes32 key) external;
 
