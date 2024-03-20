@@ -254,8 +254,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
             withdrawalB = FixedPointMathLib.mulDivDown(amountB, burnAmount, supply);
             amountA -= withdrawalA;
             amountB -= withdrawalB;
-            bookKeyA.quote.transfer(user, withdrawalA);
-            bookKeyA.base.transfer(user, withdrawalB);
         }
 
         // Compute allocation
@@ -269,6 +267,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
 
         pool.lastRebalanceTimestamp = uint64(block.timestamp);
+
+        if (withdrawalA > 0) bookKeyA.quote.transfer(user, withdrawalA);
+        if (withdrawalB > 0) bookKeyA.base.transfer(user, withdrawalB);
     }
 
     function _clearOrders(OrderId[] storage orderIds)
