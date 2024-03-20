@@ -227,6 +227,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         _pools[key].rebalanceThreshold = rebalanceThreshold;
         bookPair[bookIdA] = bookIdB;
         bookPair[bookIdB] = bookIdA;
+
+        emit Open(key, bookIdA, bookIdB, strategy, rebalanceThreshold);
     }
 
     function _burnAndRebalance(bytes32 key, address user, uint256 burnAmount)

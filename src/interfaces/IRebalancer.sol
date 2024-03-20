@@ -17,6 +17,10 @@ interface IRebalancer {
     error LockFailure();
     error InvalidMaker();
 
+    event Open(
+        bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy, uint32 rebalanceThreshold
+    );
+
     struct Pool {
         BookId bookIdA;
         BookId bookIdB;
