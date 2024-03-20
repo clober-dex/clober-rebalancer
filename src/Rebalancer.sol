@@ -27,7 +27,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
     using FeePolicyLibrary for FeePolicy;
 
     mapping(bytes32 key => Pool) private _pools;
-    mapping(BookId => BookId) private _bookPair;
+    mapping(BookId => BookId) public bookPair;
 
     modifier selfOnly() {
         if (msg.sender != address(this)) revert NotSelf();
@@ -61,13 +61,17 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         returns (bytes4)
     {
         BookId bookId = params.key.toId();
-        BookId pairId = _bookPair[bookId];
+        BookId pairId = bookPair[bookId];
         if (BookId.unwrap(pairId) == 0) revert InvalidBookPair();
         if (BookId.unwrap(bookId) > BookId.unwrap(pairId)) (bookId, pairId) = (pairId, bookId);
 
         rebalance(keccak256(abi.encodePacked(bookId, pairId)));
 
         return this.beforeTake.selector;
+    }
+
+    function getPool(bytes32 key) external view returns (Pool memory) {
+        return _pools[key];
     }
 
     function getBookPairs(bytes32 key) external view returns (BookId, BookId) {
@@ -221,8 +225,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         _pools[key].bookIdB = bookIdB;
         _pools[key].strategy = IStrategy(strategy);
         _pools[key].rebalanceThreshold = rebalanceThreshold;
-        _bookPair[bookIdA] = bookIdB;
-        _bookPair[bookIdB] = bookIdA;
+        bookPair[bookIdA] = bookIdB;
+        bookPair[bookIdB] = bookIdA;
     }
 
     function _burnAndRebalance(bytes32 key, address user, uint256 burnAmount)

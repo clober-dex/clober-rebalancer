@@ -29,6 +29,10 @@ interface IRebalancer {
         OrderId[] orderListB;
     }
 
+    function bookPair(BookId bookId) external view returns (BookId);
+
+    function getPool(bytes32 key) external view returns (Pool memory);
+
     function getBookPairs(bytes32 key) external view returns (BookId bookIdA, BookId bookIdB);
 
     function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
