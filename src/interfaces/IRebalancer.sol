@@ -10,6 +10,7 @@ import {IStrategy} from "./IStrategy.sol";
 
 interface IRebalancer {
     error NotSelf();
+    error InvalidHook();
     error InvalidBookPair();
     error InvalidLockAcquiredSender();
     error InvalidLockCaller();

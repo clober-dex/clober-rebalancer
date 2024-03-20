@@ -28,7 +28,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
 
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) private _bookPair;
-    mapping(Currency currency => uint256 amount) private _readyToWithdraw;
 
     modifier selfOnly() {
         if (msg.sender != address(this)) revert NotSelf();
@@ -210,6 +209,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         uint32 rebalanceThreshold
     ) public selfOnly returns (bytes32 key) {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
+        if (address(bookKeyA.hooks) != address(this) || address(bookKeyB.hooks) != address(this)) revert InvalidHook();
         bookManager.open(bookKeyA, "");
         bookManager.open(bookKeyB, "");
         BookId bookIdA = bookKeyA.toId();
