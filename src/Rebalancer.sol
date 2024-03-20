@@ -142,7 +142,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         pool.reserveB += amountB;
         uint256 supply = totalSupply[uint256(key)];
         if (supply == 0) {
-            mintAmount = 1e18;
+            mintAmount = amountA + pool.strategy.convertAmount(pool.bookIdA, pool.bookIdB, amountB, false);
         } else {
             uint256 amountALiquidityB = amountA * liquidityB;
             uint256 amountBLiquidityA = amountB * liquidityA;
