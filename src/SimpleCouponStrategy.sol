@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
+import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
 import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
@@ -13,6 +14,7 @@ import {Epoch, EpochLibrary} from "./libraries/Epoch.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 
 contract SimpleCouponStrategy is IStrategy, Ownable2Step {
+    using FeePolicyLibrary for FeePolicy;
     using TickLibrary for Tick;
     using EpochLibrary for Epoch;
 
@@ -84,10 +86,14 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
 
         (Tick bidTick, Tick askTick) = calculateCouponTick(key);
 
-        bids[0] =
-            Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookManager.getBookKey(bookIdA).unit)});
-        asks[0] =
-            Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookManager.getBookKey(bookIdB).unit)});
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
+
+        amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
+        amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
+
+        bids[0] = Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unit)});
+        asks[0] = Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unit)});
     }
 
     function setCouponStrategy(bytes32 key, Epoch epoch, uint96 bidRate, uint96 askRate) external onlyOwner {
