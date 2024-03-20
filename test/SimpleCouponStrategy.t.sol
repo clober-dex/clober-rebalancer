@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 
-import {BookManager} from "clober-dex/v2-core/BookManager.sol";
-import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
+import "clober-dex/v2-core/BookManager.sol";
+import "solmate/test/utils/mocks/MockERC20.sol";
 
 import "../src/SimpleCouponStrategy.sol";
 import "./mocks/OpenRouter.sol";
@@ -60,7 +60,7 @@ contract SimpleCouponStrategyTest is Test {
         strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
     }
 
-    function testCalculateCouponPrice() public {
+    function testCalculateCouponPrice() public view {
         uint96 rate = 98534533154674428335; // 1.243 * 1e9
         Epoch current = EpochLibrary.current();
 
@@ -84,20 +84,54 @@ contract SimpleCouponStrategyTest is Test {
         assertEq(FixedPointMathLib.mulDivDown(sum, 1e18, 1 << 96), 38621241086468001);
     }
 
-    function testCalculateCouponTick() public {
+    function testCalculateCouponTick() public view {
         (Tick bidTick, Tick askTick) = strategy.calculateCouponTick(key);
-        assertEq(Tick.unwrap(bidTick), -57340);
-        assertEq(Tick.unwrap(askTick), 53363);
-        assertEq(FixedPointMathLib.mulDivDown(bidTick.toPrice(), 1e18, 1 << 128), 3235042158527404);
-        assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 128), 207687221007653627846);
+        assertEq(Tick.unwrap(bidTick), -57340, "BID_TICK");
+        assertEq(Tick.unwrap(askTick), 53363, "ASK_TICK");
+        assertEq(FixedPointMathLib.mulDivDown(bidTick.toPrice(), 1e18, 1 << 128), 3235042158527404, "BID_PRICE");
+        assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 128), 207687221007653627846, "ASK_PRICE");
     }
 
-    function testConvertAmount() public {
+    function testConvertAmount() public view {
         uint256 amount = 1e18;
         BookId bookIdA = keyA.toId();
         BookId bookIdB = keyB.toId();
 
-        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, true), 3235042158527404);
-        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, false), 207687221007653627846);
+        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, true), 3235042158527404, "A -> B");
+        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, false), 207687221007653627846, "B -> A");
+    }
+
+    function testComputeAllocation() public view {
+        (SimpleCouponStrategy.Liquidity[] memory bids, SimpleCouponStrategy.Liquidity[] memory asks) =
+            strategy.computeAllocation(keyA.toId(), 1e18 + 123, keyB.toId(), 1e15 - 123);
+        assertEq(bids.length, 1, "BIDS_LENGTH");
+        assertEq(asks.length, 1, "ASKS_LENGTH");
+        assertEq(Tick.unwrap(bids[0].tick), -57340, "BID_TICK");
+        assertEq(bids[0].rawAmount, 1e6, "BID_AMOUNT");
+        assertEq(Tick.unwrap(asks[0].tick), 53363, "ASK_TICK");
+        assertEq(asks[0].rawAmount, 1e3 - 1, "ASK_AMOUNT");
+    }
+
+    function testSetCouponStrategy() public {
+        Epoch epoch = EpochLibrary.current().add(2);
+        uint96 bidRate = 123456789;
+        uint96 askRate = 987654321;
+
+        strategy.setCouponStrategy(key, epoch, bidRate, askRate);
+
+        SimpleCouponStrategy.CouponStrategy memory s = strategy.getCouponStrategy(key);
+        assertEq(Epoch.unwrap(s.epoch), Epoch.unwrap(epoch), "EPOCH");
+        assertEq(s.bidRate, bidRate, "BID_RATE");
+        assertEq(s.askRate, askRate, "ASK_RATE");
+    }
+
+    function testSetCouponStrategyAccess() public {
+        Epoch epoch = EpochLibrary.current().add(2);
+        uint96 bidRate = 123456789;
+        uint96 askRate = 987654321;
+
+        vm.prank(address(123));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, (address(123))));
+        strategy.setCouponStrategy(key, epoch, bidRate, askRate);
     }
 }
