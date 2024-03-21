@@ -61,13 +61,13 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         bytes32 key = keccak256(abi.encodePacked(bookIdA, bookIdB));
         CouponStrategy memory strategy = _strategy[key];
         if (aToB) {
-            return TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32).baseToQuote(
+            return TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32).quoteToBase(
                 amount, false
             );
         } else {
             return Tick.wrap(
                 -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2 ** 32))
-            ).baseToQuote(amount, false);
+            ).quoteToBase(amount, false);
         }
     }
 

@@ -97,8 +97,8 @@ contract SimpleCouponStrategyTest is Test {
         BookId bookIdA = keyA.toId();
         BookId bookIdB = keyB.toId();
 
-        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, true), 3235042158527404, "A -> B");
-        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, false), 207687221007653627846, "B -> A");
+        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, true), 309114982432006754093, "A -> B");
+        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, false), 4814932739473404, "B -> A");
     }
 
     function testComputeAllocation() public view {
