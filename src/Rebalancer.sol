@@ -134,7 +134,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         );
     }
 
-    function mint(bytes32 key, uint256 amountA, uint256 amountB) external onlyOwner returns (uint256 mintAmount) {
+    function mint(bytes32 key, uint256 amountA, uint256 amountB) external returns (uint256 mintAmount) {
         (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
         Pool storage pool = _pools[key];
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
