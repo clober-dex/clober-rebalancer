@@ -14,6 +14,6 @@ abstract contract ERC6909Supply is ERC6909 {
 
     function _burn(address sender, uint256 id, uint256 amount) internal virtual override {
         super._burn(sender, id, amount);
-        balanceOf[sender][id] -= amount;
+        totalSupply[id] -= amount;
     }
 }
