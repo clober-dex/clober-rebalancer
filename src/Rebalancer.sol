@@ -134,12 +134,20 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         );
     }
 
-    function mint(bytes32 key, uint256 amountA, uint256 amountB) external returns (uint256 mintAmount) {
+    function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256 mintAmount) {
         (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
         Pool storage pool = _pools[key];
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
-        IERC20(Currency.unwrap(bookKeyA.quote)).safeTransferFrom(msg.sender, address(this), amountA);
-        IERC20(Currency.unwrap(bookKeyA.base)).safeTransferFrom(msg.sender, address(this), amountB);
+        if (bookKeyA.quote.equals(CurrencyLibrary.NATIVE)) {
+            if (msg.value != amountA) revert InvalidValue();
+        } else {
+            IERC20(Currency.unwrap(bookKeyA.quote)).safeTransferFrom(msg.sender, address(this), amountA);
+        }
+        if (bookKeyA.base.equals(CurrencyLibrary.NATIVE)) {
+            if (msg.value != amountB) revert InvalidValue();
+        } else {
+            IERC20(Currency.unwrap(bookKeyA.base)).safeTransferFrom(msg.sender, address(this), amountB);
+        }
 
         pool.reserveA += amountA;
         pool.reserveB += amountB;

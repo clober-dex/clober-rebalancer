@@ -16,6 +16,7 @@ interface IRebalancer {
     error InvalidLockCaller();
     error LockFailure();
     error InvalidMaker();
+    error InvalidValue();
 
     event Open(
         bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy, uint32 rebalanceThreshold
@@ -49,7 +50,7 @@ interface IRebalancer {
         uint32 rebalanceThreshold
     ) external returns (bytes32 key);
 
-    function mint(bytes32 key, uint256 amountA, uint256 amountB) external returns (uint256);
+    function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256);
 
     function burn(bytes32 key, uint256 amount) external returns (uint256, uint256);
 
