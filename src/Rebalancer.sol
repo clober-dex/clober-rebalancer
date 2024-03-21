@@ -84,21 +84,24 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         liquidityA = pool.reserveA;
         liquidityB = pool.reserveB;
 
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
-
         OrderId[] memory orderListA = pool.orderListA;
         OrderId[] memory orderListB = pool.orderListB;
 
-        for (uint256 i; i < orderListA.length; ++i) {
-            (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyA, orderListA[i]);
-            liquidityA += cancelable;
-            liquidityB += claimable;
+        if (orderListA.length > 0) {
+            IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
+            for (uint256 i; i < orderListA.length; ++i) {
+                (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyA, orderListA[i]);
+                liquidityA += cancelable;
+                liquidityB += claimable;
+            }
         }
-        for (uint256 i; i < orderListB.length; ++i) {
-            (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyB, orderListB[i]);
-            liquidityA += claimable;
-            liquidityB += cancelable;
+        if (orderListB.length > 0) {
+            IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
+            for (uint256 i; i < orderListB.length; ++i) {
+                (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyB, orderListB[i]);
+                liquidityA += claimable;
+                liquidityB += cancelable;
+            }
         }
     }
 
