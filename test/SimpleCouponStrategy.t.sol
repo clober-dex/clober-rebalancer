@@ -60,6 +60,15 @@ contract SimpleCouponStrategyTest is Test {
         strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
     }
 
+    function testCalculateCouponPriceMinimum() public {
+        Epoch current = EpochLibrary.current();
+        vm.warp(current.endTime() - 1);
+        uint96 rate = 98534533154674428335; // 1.243 * 1e9
+        uint256 p = strategy.calculateCouponPrice(current, rate);
+        assertEq(p, 98534533154674428335);
+        assertEq(FixedPointMathLib.mulDivDown(p, 1e18, 1 << 96), 1243680656);
+    }
+
     function testCalculateCouponPrice() public view {
         uint96 rate = 98534533154674428335; // 1.243 * 1e9
         Epoch current = EpochLibrary.current();
