@@ -171,6 +171,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
             }
         }
         _mint(msg.sender, uint256(key), mintAmount);
+
+        emit Mint(msg.sender, key, amountA, amountB, mintAmount);
     }
 
     function burn(bytes32 key, uint256 amount) external returns (uint256, uint256) {
