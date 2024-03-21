@@ -79,6 +79,11 @@ contract RebalancerTest is Test {
             unopenedKeyB = temp;
         }
 
+        tokenA.mint(address(this), 1e27);
+        tokenB.mint(address(this), 1e27);
+        tokenA.approve(address(rebalancer), type(uint256).max);
+        tokenB.approve(address(rebalancer), type(uint256).max);
+
         key = rebalancer.open(keyA, keyB, address(strategy), 3600);
 
         strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
@@ -146,4 +151,117 @@ contract RebalancerTest is Test {
         vm.prank(address(0x123));
         rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy), 3600);
     }
+
+    function testMintInitially() public {
+        assertEq(rebalancer.totalSupply(uint256(key)), 0, "INITIAL_SUPPLY");
+
+        uint256 snapshotId = vm.snapshot();
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Mint(address(this), key, 12341234, 0, 12341234);
+        rebalancer.mint(key, 12341234, 0);
+        assertEq(rebalancer.totalSupply(uint256(key)), 12341234, "AFTER_SUPPLY_0");
+        assertEq(rebalancer.getPool(key).reserveA, 12341234, "RESERVE_A_0");
+        assertEq(rebalancer.getPool(key).reserveB, 0, "RESERVE_B_0");
+        (uint256 liquidityA, uint256 liquidityB) = rebalancer.getLiquidity(key);
+        assertEq(liquidityA, 12341234, "LIQUIDITY_A_0");
+        assertEq(liquidityB, 0, "LIQUIDITY_B_0");
+        assertEq(rebalancer.balanceOf(address(this), uint256(key)), 12341234, "LP_BALANCE_0");
+
+        vm.revertTo(snapshotId);
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Mint(address(this), key, 0, 1e18, 4814932739473404);
+        rebalancer.mint(key, 0, 1e18);
+        assertEq(rebalancer.totalSupply(uint256(key)), 4814932739473404, "AFTER_SUPPLY_1");
+        assertEq(rebalancer.getPool(key).reserveA, 0, "RESERVE_A_1");
+        assertEq(rebalancer.getPool(key).reserveB, 1e18, "RESERVE_B_1");
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        assertEq(liquidityA, 0, "LIQUIDITY_A_1");
+        assertEq(liquidityB, 1e18, "LIQUIDITY_B_1");
+        assertEq(rebalancer.balanceOf(address(this), uint256(key)), 4814932739473404, "LP_BALANCE_1");
+
+        vm.revertTo(snapshotId);
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Mint(address(this), key, 1e18, 1e18, 1004814932739473404);
+        rebalancer.mint(key, 1e18, 1e18);
+        assertEq(rebalancer.totalSupply(uint256(key)), 1004814932739473404, "AFTER_SUPPLY_2");
+        assertEq(rebalancer.getPool(key).reserveA, 1e18, "RESERVE_A_2");
+        assertEq(rebalancer.getPool(key).reserveB, 1e18, "RESERVE_B_2");
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        assertEq(liquidityA, 1e18, "LIQUIDITY_A_2");
+        assertEq(liquidityB, 1e18, "LIQUIDITY_B_2");
+        assertEq(rebalancer.balanceOf(address(this), uint256(key)), 1004814932739473404, "LP_BALANCE_2");
+    }
+
+    function testMint() public {
+        rebalancer.mint(key, 1e18, 1e18);
+        assertEq(rebalancer.totalSupply(uint256(key)), 1004814932739473404, "BEFORE_SUPPLY");
+
+        IRebalancer.Pool memory beforePool = rebalancer.getPool(key);
+        IRebalancer.Pool memory afterPool = beforePool;
+        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+        (uint256 afterLiquidityA, uint256 afterLiquidityB) = (beforeLiquidityA, beforeLiquidityB);
+        uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
+        uint256 beforeSupply = rebalancer.totalSupply(uint256(key));
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Mint(address(this), key, 1e18 / 2, 1e18 / 2, 1004814932739473404 / 2);
+        rebalancer.mint(key, 1e18 / 2, 1e18 / 2);
+        afterPool = rebalancer.getPool(key);
+        (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
+        assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply + 1004814932739473404 / 2, "AFTER_SUPPLY_0");
+        assertEq(afterPool.reserveA, beforePool.reserveA + 1e18 / 2, "RESERVE_A_0");
+        assertEq(afterPool.reserveB, beforePool.reserveB + 1e18 / 2, "RESERVE_B_0");
+        assertEq(afterLiquidityA, beforeLiquidityA + 1e18 / 2, "LIQUIDITY_A_0");
+        assertEq(afterLiquidityB, beforeLiquidityB + 1e18 / 2, "LIQUIDITY_B_0");
+        assertEq(
+            rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance + 1004814932739473404 / 2, "LP_BALANCE_0"
+        );
+
+        beforePool = afterPool;
+        (beforeLiquidityA, beforeLiquidityB) = (afterLiquidityA, afterLiquidityB);
+        beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
+        beforeSupply = rebalancer.totalSupply(uint256(key));
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Mint(address(this), key, 1e18, 0, 1001574796049335317);
+        rebalancer.mint(key, 1e18, 0);
+        afterPool = rebalancer.getPool(key);
+        (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
+        assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply + 1001574796049335317, "AFTER_SUPPLY_1");
+        assertEq(afterPool.reserveA, beforePool.reserveA + 1e18, "RESERVE_A_1");
+        assertEq(afterPool.reserveB, beforePool.reserveB, "RESERVE_B_1");
+        assertEq(afterLiquidityA, beforeLiquidityA + 1e18, "LIQUIDITY_A_1");
+        assertEq(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B_1");
+        assertEq(
+            rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance + 1001574796049335317, "LP_BALANCE_1"
+        );
+
+        beforePool = afterPool;
+        (beforeLiquidityA, beforeLiquidityB) = (afterLiquidityA, afterLiquidityB);
+        beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
+        beforeSupply = rebalancer.totalSupply(uint256(key));
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Mint(address(this), key, 0, 1e18, 4817957017279247);
+        rebalancer.mint(key, 0, 1e18);
+        afterPool = rebalancer.getPool(key);
+        (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
+        assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply + 4817957017279247, "AFTER_SUPPLY_2");
+        assertEq(afterPool.reserveA, beforePool.reserveA, "RESERVE_A_2");
+        assertEq(afterPool.reserveB, beforePool.reserveB + 1e18, "RESERVE_B_2");
+        assertEq(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A_2");
+        assertEq(afterLiquidityB, beforeLiquidityB + 1e18, "LIQUIDITY_B_2");
+        assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance + 4817957017279247, "LP_BALANCE_2");
+    }
+
+    function testBurn() public {}
+
+    function testRebalance() public {}
+
+    function testRebalanceAfterSomeOrdersHaveTaken() public {}
+
+    function testRebalanceShouldSkipIfThresholdNotReached() public {}
+
+    function testRebalanceRevertUnknownBook() public {}
 }
