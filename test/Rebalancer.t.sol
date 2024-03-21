@@ -92,18 +92,21 @@ contract RebalancerTest is Test {
         vm.expectEmit(false, true, true, true, address(rebalancer));
         emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, address(strategy), 3600);
         bytes32 key1 = rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy), 3600);
+        IRebalancer.Pool memory pool = rebalancer.getPool(key1);
+        assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
+        assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
 
         vm.revertTo(snapshotId);
         vm.expectEmit(false, true, true, true, address(rebalancer));
         emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, address(strategy), 3600);
         bytes32 key2 = rebalancer.open(unopenedKeyB, unopenedKeyA, address(strategy), 3600);
+        pool = rebalancer.getPool(key1);
+        assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
+        assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
 
         assertEq(key1, key2, "SAME_KEY");
         assertEq(BookId.unwrap(rebalancer.bookPair(bookIdA)), BookId.unwrap(bookIdB), "PAIR_A");
         assertEq(BookId.unwrap(rebalancer.bookPair(bookIdB)), BookId.unwrap(bookIdA), "PAIR_B");
-        IRebalancer.Pool memory pool = rebalancer.getPool(key1);
-        assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
-        assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
         assertEq(address(pool.strategy), address(strategy), "STRATEGY");
         assertEq(pool.rebalanceThreshold, 3600, "THRESHOLD");
         assertEq(pool.reserveA, 0, "RESERVE_A");
