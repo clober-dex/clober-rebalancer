@@ -266,6 +266,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
             pool.strategy.computeAllocation(pool.bookIdA, amountA, pool.bookIdB, amountB);
 
+        // @dev pool.orderListA.length == 0 && pool.orderListB.length == 0
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
         _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
@@ -301,12 +302,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
     function _setLiquidity(
         IBookManager.BookKey memory bookKey,
         IStrategy.Liquidity[] memory liquidity,
-        OrderId[] storage orderIds
+        OrderId[] storage emptyOrderIds
     ) internal {
-        assembly {
-            sstore(orderIds.slot, mload(liquidity))
-        }
         for (uint256 i = 0; i < liquidity.length; ++i) {
+            if (liquidity[i].rawAmount == 0) continue;
             (OrderId orderId,) = bookManager.make(
                 IBookManager.MakeParams({
                     key: bookKey,
@@ -316,7 +315,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
                 }),
                 ""
             );
-            orderIds[i] = orderId;
+            emptyOrderIds.push(orderId);
         }
     }
 
