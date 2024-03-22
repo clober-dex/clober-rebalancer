@@ -35,10 +35,8 @@ contract RebalancerTest is Test {
         bookManager = new BookManager(address(this), address(0x123), "URI", "URI", "Name", "SYMBOL");
         cloberOpenRouter = new OpenRouter(bookManager);
 
-        MockERC20 tokenA_ = new MockERC20("Token A", "TKA", 18);
-        MockERC20 tokenB_ = new MockERC20("Token B", "TKB", 18);
-
-        strategy = new SimpleCouponStrategy(bookManager, address(this));
+        tokenA = new MockERC20("Token A", "TKA", 18);
+        tokenB = new MockERC20("Token B", "TKB", 18);
 
         vm.record();
         RebalancerWrapper impl = new RebalancerWrapper(bookManager, address(this), rebalancer);
@@ -52,42 +50,32 @@ contract RebalancerTest is Test {
             }
         }
 
-        IBookManager.BookKey memory keyA_ = IBookManager.BookKey({
-            base: Currency.wrap(address(tokenB_)),
+        strategy = new SimpleCouponStrategy(rebalancer, bookManager, address(this));
+
+        keyA = IBookManager.BookKey({
+            base: Currency.wrap(address(tokenB)),
             unit: 1e12,
-            quote: Currency.wrap(address(tokenA_)),
+            quote: Currency.wrap(address(tokenA)),
             makerPolicy: FeePolicyLibrary.encode(true, 0),
             hooks: rebalancer,
             takerPolicy: FeePolicyLibrary.encode(true, 0)
         });
-        unopenedKeyA = keyA_;
+        unopenedKeyA = keyA;
         unopenedKeyA.unit = 1e13;
-        IBookManager.BookKey memory keyB_ = IBookManager.BookKey({
-            base: Currency.wrap(address(tokenA_)),
+        keyB = IBookManager.BookKey({
+            base: Currency.wrap(address(tokenA)),
             unit: 1e12,
-            quote: Currency.wrap(address(tokenB_)),
+            quote: Currency.wrap(address(tokenB)),
             makerPolicy: FeePolicyLibrary.encode(true, 0),
             hooks: rebalancer,
             takerPolicy: FeePolicyLibrary.encode(true, 0)
         });
-        unopenedKeyB = keyB_;
+        unopenedKeyB = keyB;
         unopenedKeyB.unit = 1e13;
 
-        if (BookId.unwrap(unopenedKeyA.toId()) > BookId.unwrap(unopenedKeyB.toId())) {
-            IBookManager.BookKey memory temp = unopenedKeyA;
-            unopenedKeyA = unopenedKeyB;
-            unopenedKeyB = temp;
-        }
-
-        key = rebalancer.open(keyA_, keyB_, address(strategy), 3600);
+        key = rebalancer.open(keyA, keyB, address(strategy), 3600);
 
         strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
-
-        IRebalancer.Pool memory pool = rebalancer.getPool(key);
-        keyA = bookManager.getBookKey(pool.bookIdA);
-        keyB = bookManager.getBookKey(pool.bookIdB);
-        tokenA = MockERC20(Currency.unwrap(keyA.quote));
-        tokenB = MockERC20(Currency.unwrap(keyB.quote));
 
         tokenA.mint(address(this), 1e27);
         tokenB.mint(address(this), 1e27);

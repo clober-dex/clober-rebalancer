@@ -51,13 +51,16 @@ contract SimpleCouponStrategyTest is Test {
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
 
-        BookId bookIdA = keyA.toId();
-        BookId bookIdB = keyB.toId();
-        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
-        key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+        strategy = new SimpleCouponStrategy(IRebalancer(address(this)), bookManager, address(this));
 
-        strategy = new SimpleCouponStrategy(bookManager, address(this));
+        key = bytes32(uint256(123123));
+
         strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
+    }
+
+    // @dev mocking
+    function getBookPairs(bytes32) external view returns (BookId bookIdA, BookId bookIdB) {
+        return (keyA.toId(), keyB.toId());
     }
 
     function testCalculateCouponPriceMinimum() public {
@@ -103,16 +106,14 @@ contract SimpleCouponStrategyTest is Test {
 
     function testConvertAmount() public view {
         uint256 amount = 1e18;
-        BookId bookIdA = keyA.toId();
-        BookId bookIdB = keyB.toId();
 
-        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, true), 309114982432006754093, "A -> B");
-        assertEq(strategy.convertAmount(bookIdA, bookIdB, amount, false), 4814932739473404, "B -> A");
+        assertEq(strategy.convertAmount(key, amount, true), 309114982432006754093, "A -> B");
+        assertEq(strategy.convertAmount(key, amount, false), 4814932739473404, "B -> A");
     }
 
     function testComputeAllocation() public view {
         (SimpleCouponStrategy.Liquidity[] memory bids, SimpleCouponStrategy.Liquidity[] memory asks) =
-            strategy.computeAllocation(keyA.toId(), 1e18 + 123, keyB.toId(), 1e15 - 123);
+            strategy.computeAllocation(key, 1e18 + 123, 1e15 - 4435);
         assertEq(bids.length, 1, "BIDS_LENGTH");
         assertEq(asks.length, 1, "ASKS_LENGTH");
         assertEq(Tick.unwrap(bids[0].tick), -57340, "BID_TICK");

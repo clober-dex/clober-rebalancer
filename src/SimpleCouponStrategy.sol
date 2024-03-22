@@ -12,12 +12,14 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {Epoch, EpochLibrary} from "./libraries/Epoch.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
+import {IRebalancer} from "./interfaces/IRebalancer.sol";
 
 contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     using FeePolicyLibrary for FeePolicy;
     using TickLibrary for Tick;
     using EpochLibrary for Epoch;
 
+    IRebalancer public immutable rebalancer;
     IBookManager public immutable bookManager;
     uint256 public constant PRECISION = 1 << 96;
 
@@ -29,7 +31,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
 
     mapping(bytes32 key => CouponStrategy) private _strategy;
 
-    constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
+    constructor(IRebalancer rebalancer_, IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
+        rebalancer = rebalancer_;
         bookManager = bookManager_;
     }
 
@@ -56,9 +59,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         );
     }
 
-    function convertAmount(BookId bookIdA, BookId bookIdB, uint256 amount, bool aToB) external view returns (uint256) {
-        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
-        bytes32 key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+    function convertAmount(bytes32 key, uint256 amount, bool aToB) external view returns (uint256) {
         CouponStrategy memory strategy = _strategy[key];
         if (aToB) {
             return TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32).quoteToBase(
@@ -71,7 +72,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         }
     }
 
-    function computeAllocation(BookId bookIdA, uint256 amountA, BookId bookIdB, uint256 amountB)
+    function computeAllocation(bytes32 key, uint256 amountA, uint256 amountB)
         external
         view
         returns (Liquidity[] memory bids, Liquidity[] memory asks)
@@ -79,11 +80,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         bids = new Liquidity[](1);
         asks = new Liquidity[](1);
 
-        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) {
-            (bookIdA, bookIdB, amountA, amountB) = (bookIdB, bookIdA, amountB, amountA);
-        }
-        bytes32 key = keccak256(abi.encodePacked(bookIdA, bookIdB));
-
+        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
         (Tick bidTick, Tick askTick) = calculateCouponTick(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);

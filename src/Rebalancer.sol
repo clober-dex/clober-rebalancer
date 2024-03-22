@@ -65,7 +65,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         if (BookId.unwrap(pairId) == 0) revert InvalidBookPair();
         if (BookId.unwrap(bookId) > BookId.unwrap(pairId)) (bookId, pairId) = (pairId, bookId);
 
-        rebalance(keccak256(abi.encodePacked(bookId, pairId)));
+        rebalance(_encodeKey(bookId, pairId));
 
         return this.beforeTake.selector;
     }
@@ -156,28 +156,27 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         pool.reserveB += amountB;
         uint256 supply = totalSupply[uint256(key)];
         if (supply == 0) {
-            mintAmount = amountA + pool.strategy.convertAmount(pool.bookIdA, pool.bookIdB, amountB, false);
+            mintAmount = amountA + pool.strategy.convertAmount(key, amountB, false);
         } else {
             uint256 amountALiquidityB = amountA * liquidityB;
             uint256 amountBLiquidityA = amountB * liquidityA;
             if (amountALiquidityB > amountBLiquidityA) {
-                IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
+                int256 fee = bookManager.getBookKey(pool.bookIdB).takerPolicy.calculateFee(liquidityA, false);
+                uint256 denominator = fee > 0 ? liquidityA - uint256(fee) : liquidityA + uint256(-fee);
+                denominator = pool.strategy.convertAmount(key, denominator, true) + liquidityB;
                 uint256 numerator;
                 unchecked {
                     numerator = amountALiquidityB - amountBLiquidityA;
                 }
-                int256 fee = bookKeyB.takerPolicy.calculateFee(liquidityA, false);
-                uint256 denominator = fee > 0 ? liquidityA - uint256(fee) : liquidityA + uint256(-fee);
-                denominator = pool.strategy.convertAmount(pool.bookIdA, pool.bookIdB, denominator, true) + liquidityB;
                 mintAmount = FixedPointMathLib.mulDivDown(amountA - numerator / denominator, supply, liquidityA);
             } else {
+                int256 fee = bookKeyA.takerPolicy.calculateFee(liquidityB, false);
+                uint256 denominator = fee > 0 ? liquidityB - uint256(fee) : liquidityB + uint256(-fee);
+                denominator = pool.strategy.convertAmount(key, denominator, false) + liquidityA;
                 uint256 numerator;
                 unchecked {
                     numerator = amountBLiquidityA - amountALiquidityB;
                 }
-                int256 fee = bookKeyA.takerPolicy.calculateFee(liquidityB, false);
-                uint256 denominator = fee > 0 ? liquidityB - uint256(fee) : liquidityB + uint256(-fee);
-                denominator = pool.strategy.convertAmount(pool.bookIdA, pool.bookIdB, denominator, false) + liquidityA;
                 mintAmount = FixedPointMathLib.mulDivDown(amountB - numerator / denominator, supply, liquidityB);
             }
         }
@@ -233,7 +232,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         BookId bookIdB = bookKeyB.toId();
         if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
 
-        key = keccak256(abi.encodePacked(bookIdA, bookIdB));
+        key = _encodeKey(bookIdA, bookIdB);
         _pools[key].bookIdA = bookIdA;
         _pools[key].bookIdB = bookIdB;
         _pools[key].strategy = IStrategy(strategy);
@@ -278,7 +277,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
 
         // Compute allocation
         (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
-            pool.strategy.computeAllocation(pool.bookIdA, amountA, pool.bookIdB, amountB);
+            pool.strategy.computeAllocation(key, amountA, amountB);
 
         // @dev pool.orderListA.length == 0 && pool.orderListB.length == 0
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
@@ -346,6 +345,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
             liquidity += uint256(-delta);
         }
         return liquidity;
+    }
+
+    function _encodeKey(BookId bookIdA, BookId bookIdB) internal pure returns (bytes32) {
+        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
+        return keccak256(abi.encodePacked(bookIdA, bookIdB));
     }
 
     function setStrategy(bytes32 key, address strategy) external onlyOwner {
