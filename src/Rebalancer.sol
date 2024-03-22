@@ -273,6 +273,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
             withdrawalB = FixedPointMathLib.mulDivDown(amountB, burnAmount, supply);
             amountA -= withdrawalA;
             amountB -= withdrawalB;
+            emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
         }
 
         // Compute allocation

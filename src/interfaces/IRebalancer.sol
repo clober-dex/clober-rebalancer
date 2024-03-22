@@ -22,6 +22,7 @@ interface IRebalancer {
         bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy, uint32 rebalanceThreshold
     );
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
+    event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
 
     struct Pool {
         BookId bookIdA;
