@@ -261,7 +261,32 @@ contract RebalancerTest is Test {
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance + 4817957017279247, "LP_BALANCE_2");
     }
 
-    function testBurn() public {}
+    function testBurn() public {
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245);
+
+        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+        uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
+        uint256 beforeSupply = rebalancer.totalSupply(uint256(key));
+        uint256 beforeABalance = tokenA.balanceOf(address(this));
+        uint256 beforeBBalance = tokenB.balanceOf(address(this));
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Burn(
+            address(this), key, uint256(1e18 + 141231) / 2, uint256(1e21 + 241245) / 2, beforeSupply / 2
+        );
+        rebalancer.burn(key, beforeSupply / 2);
+
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
+        assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
+        assertEq(afterPool.reserveA, uint256(141231) - uint256(141231) / 2, "RESERVE_A");
+        assertEq(afterPool.reserveB, uint256(241245) - uint256(241245) / 2, "RESERVE_B");
+        assertEq(afterLiquidityA, beforeLiquidityA - uint256(1e18 + 141231) / 2, "LIQUIDITY_A");
+        assertEq(afterLiquidityB, beforeLiquidityB - uint256(1e21 + 241245) / 2, "LIQUIDITY_B");
+        assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance - beforeSupply / 2, "LP_BALANCE");
+        assertEq(tokenA.balanceOf(address(this)) - beforeABalance, uint256(1e18 + 141231) / 2, "A_BALANCE");
+        assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, uint256(1e21 + 241245) / 2, "B_BALANCE");
+    }
 
     function testRebalance() public {}
 
