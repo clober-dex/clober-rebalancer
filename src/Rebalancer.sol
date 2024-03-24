@@ -289,6 +289,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
 
         if (withdrawalA > 0) bookKeyA.quote.transfer(user, withdrawalA);
         if (withdrawalB > 0) bookKeyA.base.transfer(user, withdrawalB);
+
+        emit Rebalance(key);
     }
 
     function _clearOrders(OrderId[] storage orderIds)

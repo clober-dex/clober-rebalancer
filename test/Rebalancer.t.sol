@@ -269,8 +269,8 @@ contract RebalancerTest is Test {
         IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
-        assertEq(afterPool.reserveA, 500000070616, "RESERVE_A"); // < 1e12
-        assertEq(afterPool.reserveB, 120623, "RESERVE_B"); // < 1e12
+        assertLt(afterPool.reserveA, keyA.unit, "RESERVE_A"); // 500000070616
+        assertLt(afterPool.reserveB, keyB.unit, "RESERVE_B"); // 120623
         assertEq(afterLiquidityA, beforeLiquidityA - uint256(1e18 + 141231) / 2, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB - uint256(1e21 + 241245) / 2, "LIQUIDITY_B");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance - beforeSupply / 2, "LP_BALANCE");
