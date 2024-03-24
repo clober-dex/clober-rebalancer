@@ -9,7 +9,7 @@ import "solmate/test/utils/mocks/MockERC20.sol";
 
 import "../src/SimpleCouponStrategy.sol";
 import "../src/Rebalancer.sol";
-import "./mocks/OpenRouter.sol";
+import "./mocks/TakeRouter.sol";
 import "./mocks/RebalancerWrapper.sol";
 
 contract RebalancerTest is Test {
@@ -18,7 +18,6 @@ contract RebalancerTest is Test {
     using TickLibrary for Tick;
 
     IBookManager public bookManager;
-    OpenRouter public cloberOpenRouter;
     SimpleCouponStrategy public strategy;
     MockERC20 public tokenA;
     MockERC20 public tokenB;
@@ -29,11 +28,11 @@ contract RebalancerTest is Test {
     bytes32 public key;
     RebalancerWrapper public rebalancer =
         RebalancerWrapper(payable(address(uint160(Hooks.BEFORE_MAKE_FLAG | Hooks.AFTER_TAKE_FLAG))));
+    TakeRouter public takeRouter;
 
     function setUp() public {
         vm.warp(1710317879);
         bookManager = new BookManager(address(this), address(0x123), "URI", "URI", "Name", "SYMBOL");
-        cloberOpenRouter = new OpenRouter(bookManager);
 
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
@@ -81,6 +80,10 @@ contract RebalancerTest is Test {
         tokenB.mint(address(this), 1e27);
         tokenA.approve(address(rebalancer), type(uint256).max);
         tokenB.approve(address(rebalancer), type(uint256).max);
+
+        takeRouter = new TakeRouter(bookManager);
+        tokenA.approve(address(takeRouter), type(uint256).max);
+        tokenB.approve(address(takeRouter), type(uint256).max);
     }
 
     function testOpen() public {
@@ -276,11 +279,48 @@ contract RebalancerTest is Test {
         assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, uint256(1e21 + 241245) / 2, "B_BALANCE");
     }
 
-    function testRebalance() public {}
+    function testRebalance() public {
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245);
 
-    function testRebalanceAfterSomeOrdersHaveTaken() public {}
+        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
-    function testRebalanceShouldSkipIfThresholdNotReached() public {}
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Rebalance(key);
+        rebalancer.rebalance(key);
 
-    function testRebalanceRevertUnknownBook() public {}
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
+        assertLt(afterPool.reserveA, keyA.unit, "RESERVE_A"); // 1000141231
+        assertLt(afterPool.reserveB, keyB.unit, "RESERVE_B"); // 241245
+        assertEq(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");
+        assertEq(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
+        assertEq(afterPool.orderListA.length, 1, "ORDER_LIST_A");
+        assertEq(afterPool.orderListB.length, 1, "ORDER_LIST_B");
+    }
+
+    function testRebalanceAfterSomeOrdersHaveTaken() public {
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245);
+        rebalancer.rebalance(key);
+
+        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+
+        vm.warp(block.timestamp + 24 * 3600);
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Rebalance(key);
+        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(-57340), maxAmount: 2000}), "");
+
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
+
+        assertLt(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");
+        assertGt(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
+        assertEq(tokenA.balanceOf(address(rebalancer)), afterPool.reserveA, "RESERVE_A");
+        assertEq(tokenB.balanceOf(address(rebalancer)), afterPool.reserveB, "RESERVE_B");
+    }
+
+    function testRebalanceRevertUnknownBookPair() public {
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidBookPair.selector));
+        rebalancer.rebalance(bytes32(uint256(0x123)));
+    }
 }
