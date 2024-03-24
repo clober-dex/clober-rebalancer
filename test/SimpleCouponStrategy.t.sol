@@ -36,17 +36,17 @@ contract SimpleCouponStrategyTest is Test {
             base: Currency.wrap(address(tokenB)),
             unit: 1e12,
             quote: Currency.wrap(address(tokenA)),
-            makerPolicy: FeePolicyLibrary.encode(true, 0),
+            makerPolicy: FeePolicyLibrary.encode(true, -1000),
             hooks: IHooks(address(0)),
-            takerPolicy: FeePolicyLibrary.encode(true, 0)
+            takerPolicy: FeePolicyLibrary.encode(true, 1200)
         });
         keyB = IBookManager.BookKey({
             base: Currency.wrap(address(tokenA)),
             unit: 1e12,
             quote: Currency.wrap(address(tokenB)),
-            makerPolicy: FeePolicyLibrary.encode(true, 0),
+            makerPolicy: FeePolicyLibrary.encode(false, -1000),
             hooks: IHooks(address(0)),
-            takerPolicy: FeePolicyLibrary.encode(true, 0)
+            takerPolicy: FeePolicyLibrary.encode(false, 1200)
         });
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
@@ -117,9 +117,9 @@ contract SimpleCouponStrategyTest is Test {
         assertEq(bids.length, 1, "BIDS_LENGTH");
         assertEq(asks.length, 1, "ASKS_LENGTH");
         assertEq(Tick.unwrap(bids[0].tick), -57340, "BID_TICK");
-        assertEq(bids[0].rawAmount, 1e6, "BID_AMOUNT");
+        assertEq(bids[0].rawAmount, 1001001, "BID_AMOUNT");
         assertEq(Tick.unwrap(asks[0].tick), 53363, "ASK_TICK");
-        assertEq(asks[0].rawAmount, 1e3 - 1, "ASK_AMOUNT");
+        assertEq(asks[0].rawAmount, 999, "ASK_AMOUNT");
     }
 
     function testSetCouponStrategy() public {

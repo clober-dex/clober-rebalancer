@@ -86,8 +86,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
 
-        amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
-        amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
+        if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
+        if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
 
         bids[0] = Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unit)});
         asks[0] = Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unit)});
