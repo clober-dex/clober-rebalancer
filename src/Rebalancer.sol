@@ -230,7 +230,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         bookManager.open(bookKeyB, "");
         BookId bookIdA = bookKeyA.toId();
         BookId bookIdB = bookKeyB.toId();
-        if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
 
         key = _encodeKey(bookIdA, bookIdB);
         _pools[key].bookIdA = bookIdA;

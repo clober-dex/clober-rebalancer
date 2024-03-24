@@ -94,14 +94,20 @@ contract RebalancerTest is Test {
         IRebalancer.Pool memory pool = rebalancer.getPool(key1);
         assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
         assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
+        (BookId idA, BookId idB) = rebalancer.getBookPairs(key1);
+        assertEq(BookId.unwrap(idA), BookId.unwrap(bookIdA), "PAIRS_A");
+        assertEq(BookId.unwrap(idB), BookId.unwrap(bookIdB), "PAIRS_B");
 
         vm.revertTo(snapshotId);
         vm.expectEmit(false, true, true, true, address(rebalancer));
-        emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, address(strategy), 3600);
+        emit IRebalancer.Open(bytes32(0), bookIdB, bookIdA, address(strategy), 3600);
         bytes32 key2 = rebalancer.open(unopenedKeyB, unopenedKeyA, address(strategy), 3600);
         pool = rebalancer.getPool(key1);
-        assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
-        assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
+        assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdB), "POOL_A");
+        assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdA), "POOL_B");
+        (idA, idB) = rebalancer.getBookPairs(key1);
+        assertEq(BookId.unwrap(idA), BookId.unwrap(bookIdB), "PAIRS_A");
+        assertEq(BookId.unwrap(idB), BookId.unwrap(bookIdA), "PAIRS_B");
 
         assertEq(key1, key2, "SAME_KEY");
         assertEq(BookId.unwrap(rebalancer.bookPair(bookIdA)), BookId.unwrap(bookIdB), "PAIR_A");
@@ -113,10 +119,6 @@ contract RebalancerTest is Test {
         assertEq(pool.lastRebalanceTimestamp, 0, "LAST_REBALANCE");
         assertEq(pool.orderListA.length, 0, "ORDER_LIST_A");
         assertEq(pool.orderListB.length, 0, "ORDER_LIST_B");
-
-        (BookId idA, BookId idB) = rebalancer.getBookPairs(key1);
-        assertEq(BookId.unwrap(idA), BookId.unwrap(bookIdA), "PAIRS_A");
-        assertEq(BookId.unwrap(idB), BookId.unwrap(bookIdB), "PAIRS_B");
 
         (uint256 liquidityA, uint256 liquidityB) = rebalancer.getLiquidity(key1);
         assertEq(liquidityA, 0, "LIQUIDITY_A");
