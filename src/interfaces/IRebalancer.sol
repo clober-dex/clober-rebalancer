@@ -18,9 +18,7 @@ interface IRebalancer {
     error InvalidMaker();
     error InvalidValue();
 
-    event Open(
-        bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy, uint32 rebalanceThreshold
-    );
+    event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy);
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
@@ -29,8 +27,6 @@ interface IRebalancer {
         BookId bookIdA;
         BookId bookIdB;
         IStrategy strategy;
-        uint32 rebalanceThreshold;
-        uint64 lastRebalanceTimestamp;
         uint256 reserveA;
         uint256 reserveB;
         OrderId[] orderListA;
@@ -45,12 +41,9 @@ interface IRebalancer {
 
     function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
 
-    function open(
-        IBookManager.BookKey calldata bookKeyA,
-        IBookManager.BookKey calldata bookKeyB,
-        address strategy,
-        uint32 rebalanceThreshold
-    ) external returns (bytes32 key);
+    function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
+        external
+        returns (bytes32 key);
 
     function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256);
 
@@ -59,6 +52,4 @@ interface IRebalancer {
     function rebalance(bytes32 key) external;
 
     function setStrategy(bytes32 key, address strategy) external;
-
-    function setRebalanceThreshold(bytes32 key, uint32 rebalanceThreshold) external;
 }
