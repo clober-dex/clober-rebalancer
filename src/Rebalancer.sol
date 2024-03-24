@@ -273,11 +273,17 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
         _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
-        pool.reserveA = _settleCurrency(bookKeyA.quote, amountA);
-        pool.reserveB = _settleCurrency(bookKeyA.base, amountB);
+        pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA);
+        pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
 
-        if (withdrawalA > 0) bookKeyA.quote.transfer(user, withdrawalA);
-        if (withdrawalB > 0) bookKeyA.base.transfer(user, withdrawalB);
+        if (withdrawalA > 0) {
+            bookKeyA.quote.transfer(user, withdrawalA);
+            pool.reserveA -= withdrawalA;
+        }
+        if (withdrawalB > 0) {
+            bookKeyA.base.transfer(user, withdrawalB);
+            pool.reserveB -= withdrawalB;
+        }
 
         emit Rebalance(key);
     }
