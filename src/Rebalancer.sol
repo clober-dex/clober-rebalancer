@@ -39,7 +39,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
     function getHooksCalls() public pure override returns (Hooks.Permissions memory) {
         Hooks.Permissions memory permissions;
         permissions.beforeMake = true;
-        permissions.beforeTake = true;
+        permissions.afterTake = true;
         return permissions;
     }
 
@@ -54,7 +54,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         return this.beforeMake.selector;
     }
 
-    function beforeTake(address, IBookManager.TakeParams calldata params, bytes calldata)
+    function afterTake(address, IBookManager.TakeParams calldata params, uint64, bytes calldata)
         external
         override
         onlyBookManager
@@ -67,7 +67,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
 
         rebalance(_encodeKey(bookId, pairId));
 
-        return this.beforeTake.selector;
+        return this.afterTake.selector;
     }
 
     function getPool(bytes32 key) external view returns (Pool memory) {

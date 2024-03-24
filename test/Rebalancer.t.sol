@@ -28,7 +28,7 @@ contract RebalancerTest is Test {
     IBookManager.BookKey public unopenedKeyB;
     bytes32 public key;
     RebalancerWrapper public rebalancer =
-        RebalancerWrapper(payable(address(uint160(Hooks.BEFORE_MAKE_FLAG | Hooks.BEFORE_TAKE_FLAG))));
+        RebalancerWrapper(payable(address(uint160(Hooks.BEFORE_MAKE_FLAG | Hooks.AFTER_TAKE_FLAG))));
 
     function setUp() public {
         vm.warp(1710317879);
