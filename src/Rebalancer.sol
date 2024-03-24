@@ -63,7 +63,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         BookId bookId = params.key.toId();
         BookId pairId = bookPair[bookId];
         if (BookId.unwrap(pairId) == 0) revert InvalidBookPair();
-        if (BookId.unwrap(bookId) > BookId.unwrap(pairId)) (bookId, pairId) = (pairId, bookId);
 
         rebalance(_encodeKey(bookId, pairId));
 
