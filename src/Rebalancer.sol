@@ -188,10 +188,15 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         if (address(bookKeyA.hooks) != address(0) || address(bookKeyB.hooks) != address(0)) revert InvalidHook();
-        bookManager.open(bookKeyA, "");
-        bookManager.open(bookKeyB, "");
+
         BookId bookIdA = bookKeyA.toId();
         BookId bookIdB = bookKeyB.toId();
+        if (!bookManager.isOpened(bookIdA)) {
+            bookManager.open(bookKeyA, "");
+        }
+        if (!bookManager.isOpened(bookIdB)) {
+            bookManager.open(bookKeyB, "");
+        }
 
         key = _encodeKey(bookIdA, bookIdB);
         _pools[key].bookIdA = bookIdA;
