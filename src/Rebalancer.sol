@@ -241,8 +241,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         }
 
         // Compute allocation
-        (IStrategy.Liquidity[] memory liquidityA, IStrategy.Liquidity[] memory liquidityB) =
-            pool.strategy.computeAllocation(key, amountA, amountB);
+        (IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB) =
+            pool.strategy.computeOrders(key, amountA, amountB);
 
         // @dev pool.orderListA.length == 0 && pool.orderListB.length == 0
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
@@ -285,7 +285,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
 
     function _setLiquidity(
         IBookManager.BookKey memory bookKey,
-        IStrategy.Liquidity[] memory liquidity,
+        IStrategy.Order[] memory liquidity,
         OrderId[] storage emptyOrderIds
     ) internal {
         for (uint256 i = 0; i < liquidity.length; ++i) {

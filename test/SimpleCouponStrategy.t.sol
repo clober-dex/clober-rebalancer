@@ -112,8 +112,8 @@ contract SimpleCouponStrategyTest is Test {
     }
 
     function testComputeAllocation() public view {
-        (SimpleCouponStrategy.Liquidity[] memory bids, SimpleCouponStrategy.Liquidity[] memory asks) =
-            strategy.computeAllocation(key, 1e18 + 123, 1e15 - 4435);
+        (SimpleCouponStrategy.Order[] memory bids, SimpleCouponStrategy.Order[] memory asks) =
+            strategy.computeOrders(key, 1e18 + 123, 1e15 - 4435);
         assertEq(bids.length, 1, "BIDS_LENGTH");
         assertEq(asks.length, 1, "ASKS_LENGTH");
         assertEq(Tick.unwrap(bids[0].tick), -57340, "BID_TICK");

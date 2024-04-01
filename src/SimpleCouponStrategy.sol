@@ -72,13 +72,13 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         }
     }
 
-    function computeAllocation(bytes32 key, uint256 amountA, uint256 amountB)
+    function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
         external
         view
-        returns (Liquidity[] memory bids, Liquidity[] memory asks)
+        returns (Order[] memory bids, Order[] memory asks)
     {
-        bids = new Liquidity[](1);
-        asks = new Liquidity[](1);
+        bids = new Order[](1);
+        asks = new Order[](1);
 
         (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
         (Tick bidTick, Tick askTick) = calculateCouponTick(key);
@@ -89,8 +89,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
         if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
 
-        bids[0] = Liquidity({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unit)});
-        asks[0] = Liquidity({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unit)});
+        bids[0] = Order({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unit)});
+        asks[0] = Order({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unit)});
     }
 
     function setCouponStrategy(bytes32 key, Epoch epoch, uint96 bidRate, uint96 askRate) external onlyOwner {
