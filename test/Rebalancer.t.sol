@@ -10,7 +10,6 @@ import "solmate/test/utils/mocks/MockERC20.sol";
 import "../src/SimpleCouponStrategy.sol";
 import "../src/Rebalancer.sol";
 import "./mocks/TakeRouter.sol";
-import "./mocks/RebalancerWrapper.sol";
 
 contract RebalancerTest is Test {
     using EpochLibrary for Epoch;
@@ -26,8 +25,7 @@ contract RebalancerTest is Test {
     IBookManager.BookKey public unopenedKeyA;
     IBookManager.BookKey public unopenedKeyB;
     bytes32 public key;
-    RebalancerWrapper public rebalancer =
-        RebalancerWrapper(payable(address(uint160(Hooks.BEFORE_MAKE_FLAG | Hooks.AFTER_TAKE_FLAG))));
+    Rebalancer public rebalancer;
     TakeRouter public takeRouter;
 
     function setUp() public {
@@ -37,17 +35,7 @@ contract RebalancerTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        vm.record();
-        RebalancerWrapper impl = new RebalancerWrapper(bookManager, address(this), rebalancer);
-        (, bytes32[] memory writes) = vm.accesses(address(impl));
-        vm.etch(address(rebalancer), address(impl).code);
-        // for each storage key that was written during the hook implementation, copy the value over
-        unchecked {
-            for (uint256 i = 0; i < writes.length; i++) {
-                bytes32 slot = writes[i];
-                vm.store(address(rebalancer), slot, vm.load(address(impl), slot));
-            }
-        }
+        rebalancer = new Rebalancer(bookManager, address(this));
 
         strategy = new SimpleCouponStrategy(rebalancer, bookManager, address(this));
 
@@ -56,7 +44,7 @@ contract RebalancerTest is Test {
             unit: 1e12,
             quote: Currency.wrap(address(tokenA)),
             makerPolicy: FeePolicyLibrary.encode(true, -1000),
-            hooks: rebalancer,
+            hooks: IHooks(address(0)),
             takerPolicy: FeePolicyLibrary.encode(true, 1200)
         });
         unopenedKeyA = keyA;
@@ -66,7 +54,7 @@ contract RebalancerTest is Test {
             unit: 1e12,
             quote: Currency.wrap(address(tokenB)),
             makerPolicy: FeePolicyLibrary.encode(false, -1000),
-            hooks: rebalancer,
+            hooks: IHooks(address(0)),
             takerPolicy: FeePolicyLibrary.encode(false, 1200)
         });
         unopenedKeyB = keyB;
@@ -137,7 +125,7 @@ contract RebalancerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidHook.selector));
         rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
 
-        unopenedKeyA.hooks = rebalancer;
+        unopenedKeyA.hooks = IHooks(address(0));
         unopenedKeyB.hooks = IHooks(address(0x123));
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidHook.selector));
         rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
@@ -304,11 +292,13 @@ contract RebalancerTest is Test {
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
+        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(-57340), maxAmount: 2000}), "");
+
         vm.warp(block.timestamp + 24 * 3600);
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Rebalance(key);
-        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(-57340), maxAmount: 2000}), "");
+        rebalancer.rebalance(key);
 
         IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);

@@ -11,20 +11,21 @@ import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.s
 import {OrderId, OrderIdLibrary} from "clober-dex/v2-core/libraries/OrderId.sol";
 import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
-import {BaseHook, Hooks} from "clober-dex/v2-core/hooks/BaseHook.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supply {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using OrderIdLibrary for OrderId;
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
+
+    IBookManager public immutable bookManager;
 
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) public bookPair;
@@ -34,39 +35,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         _;
     }
 
-    constructor(IBookManager bookManager_, address initialOwner_) BaseHook(bookManager_) Ownable(initialOwner_) {}
-
-    function getHooksCalls() public pure override returns (Hooks.Permissions memory) {
-        Hooks.Permissions memory permissions;
-        permissions.beforeMake = true;
-        permissions.afterTake = true;
-        return permissions;
-    }
-
-    function beforeMake(address sender, IBookManager.MakeParams calldata, bytes calldata)
-        external
-        view
-        override
-        onlyBookManager
-        returns (bytes4)
-    {
-        if (sender != address(this)) revert InvalidMaker();
-        return this.beforeMake.selector;
-    }
-
-    function afterTake(address, IBookManager.TakeParams calldata params, uint64, bytes calldata)
-        external
-        override
-        onlyBookManager
-        returns (bytes4)
-    {
-        BookId bookId = params.key.toId();
-        BookId pairId = bookPair[bookId];
-        if (BookId.unwrap(pairId) == 0) revert InvalidBookPair();
-
-        rebalance(_encodeKey(bookId, pairId));
-
-        return this.afterTake.selector;
+    constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
+        bookManager = bookManager_;
     }
 
     function getPool(bytes32 key) external view returns (Pool memory) {
@@ -217,7 +187,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, BaseHook, ERC6909Supp
         returns (bytes32 key)
     {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
-        if (address(bookKeyA.hooks) != address(this) || address(bookKeyB.hooks) != address(this)) revert InvalidHook();
+        if (address(bookKeyA.hooks) != address(0) || address(bookKeyB.hooks) != address(0)) revert InvalidHook();
         bookManager.open(bookKeyA, "");
         bookManager.open(bookKeyB, "");
         BookId bookIdA = bookKeyA.toId();
