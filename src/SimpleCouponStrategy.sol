@@ -89,8 +89,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
         if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
 
-        bids[0] = Order({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unit)});
-        asks[0] = Order({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unit)});
+        bids[0] = Order({tick: bidTick, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unitSize)});
+        asks[0] = Order({tick: askTick, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unitSize)});
     }
 
     function setCouponStrategy(bytes32 key, Epoch epoch, uint96 bidRate, uint96 askRate) external onlyOwner {

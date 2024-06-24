@@ -41,24 +41,24 @@ contract RebalancerTest is Test {
 
         keyA = IBookManager.BookKey({
             base: Currency.wrap(address(tokenB)),
-            unit: 1e12,
+            unitSize: 1e12,
             quote: Currency.wrap(address(tokenA)),
             makerPolicy: FeePolicyLibrary.encode(true, -1000),
             hooks: IHooks(address(0)),
             takerPolicy: FeePolicyLibrary.encode(true, 1200)
         });
         unopenedKeyA = keyA;
-        unopenedKeyA.unit = 1e13;
+        unopenedKeyA.unitSize = 1e13;
         keyB = IBookManager.BookKey({
             base: Currency.wrap(address(tokenA)),
-            unit: 1e12,
+            unitSize: 1e12,
             quote: Currency.wrap(address(tokenB)),
             makerPolicy: FeePolicyLibrary.encode(false, -1000),
             hooks: IHooks(address(0)),
             takerPolicy: FeePolicyLibrary.encode(false, 1200)
         });
         unopenedKeyB = keyB;
-        unopenedKeyB.unit = 1e13;
+        unopenedKeyB.unitSize = 1e13;
 
         key = rebalancer.open(keyA, keyB, address(strategy));
 
@@ -258,8 +258,8 @@ contract RebalancerTest is Test {
         IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
-        assertLt(afterPool.reserveA, keyA.unit, "RESERVE_A"); // 500000070616
-        assertLt(afterPool.reserveB, keyB.unit, "RESERVE_B"); // 120623
+        assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A"); // 500000070616
+        assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B"); // 120623
         assertEq(afterLiquidityA, beforeLiquidityA - uint256(1e18 + 141231) / 2, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB - uint256(1e21 + 241245) / 2, "LIQUIDITY_B");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance - beforeSupply / 2, "LP_BALANCE");
@@ -278,8 +278,8 @@ contract RebalancerTest is Test {
 
         IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
-        assertLt(afterPool.reserveA, keyA.unit, "RESERVE_A"); // 1000141231
-        assertLt(afterPool.reserveB, keyB.unit, "RESERVE_B"); // 241245
+        assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A"); // 1000141231
+        assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B"); // 241245
         assertEq(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(afterPool.orderListA.length, 1, "ORDER_LIST_A");
@@ -292,7 +292,7 @@ contract RebalancerTest is Test {
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
-        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(-57340), maxAmount: 2000}), "");
+        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(-57340), maxUnit: 2000}), "");
 
         vm.warp(block.timestamp + 24 * 3600);
 

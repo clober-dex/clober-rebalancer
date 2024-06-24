@@ -34,7 +34,7 @@ contract SimpleCouponStrategyTest is Test {
 
         keyA = IBookManager.BookKey({
             base: Currency.wrap(address(tokenB)),
-            unit: 1e12,
+            unitSize: 1e12,
             quote: Currency.wrap(address(tokenA)),
             makerPolicy: FeePolicyLibrary.encode(true, -1000),
             hooks: IHooks(address(0)),
@@ -42,7 +42,7 @@ contract SimpleCouponStrategyTest is Test {
         });
         keyB = IBookManager.BookKey({
             base: Currency.wrap(address(tokenA)),
-            unit: 1e12,
+            unitSize: 1e12,
             quote: Currency.wrap(address(tokenB)),
             makerPolicy: FeePolicyLibrary.encode(false, -1000),
             hooks: IHooks(address(0)),

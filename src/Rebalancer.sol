@@ -80,8 +80,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         returns (uint256 cancelable, uint256 claimable)
     {
         IBookManager.OrderInfo memory orderInfo = bookManager.getOrder(orderId);
-        cancelable = uint256(orderInfo.open) * bookKey.unit;
-        claimable = orderId.getTick().quoteToBase(uint256(orderInfo.claimable) * bookKey.unit, false);
+        cancelable = uint256(orderInfo.open) * bookKey.unitSize;
+        claimable = orderId.getTick().quoteToBase(uint256(orderInfo.claimable) * bookKey.unitSize, false);
         if (bookKey.makerPolicy.usesQuote()) {
             int256 fee = bookKey.makerPolicy.calculateFee(cancelable, true);
             cancelable = uint256(int256(cancelable) + fee);
@@ -275,7 +275,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
                 claimedAmount += bookManager.claim(orderId, "");
             }
             if (orderInfo.open > 0) {
-                canceledAmount += bookManager.cancel(IBookManager.CancelParams({id: orderId, to: 0}), "");
+                canceledAmount += bookManager.cancel(IBookManager.CancelParams({id: orderId, toUnit: 0}), "");
             }
         }
         assembly {
@@ -294,7 +294,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
                 IBookManager.MakeParams({
                     key: bookKey,
                     tick: liquidity[i].tick,
-                    amount: liquidity[i].rawAmount,
+                    unit: liquidity[i].rawAmount,
                     provider: address(0)
                 }),
                 ""
@@ -306,7 +306,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     function _settleCurrency(Currency currency, uint256 liquidity) internal returns (uint256) {
         bookManager.settle(currency);
 
-        int256 delta = bookManager.currencyDelta(address(this), currency);
+        int256 delta = bookManager.getCurrencyDelta(address(this), currency);
         if (delta > 0) {
             currency.transfer(address(bookManager), uint256(delta));
             bookManager.settle(currency);
