@@ -53,21 +53,18 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
 
     function calculateCouponTick(bytes32 key) public view returns (Tick bidTick, Tick askTick) {
         CouponStrategy memory strategy = _strategy[key];
-        bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32);
-        askTick = Tick.wrap(
-            -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2 ** 32))
-        );
+        bidTick = TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate));
+        askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate))));
     }
 
     function convertAmount(bytes32 key, uint256 amount, bool aToB) external view returns (uint256) {
         CouponStrategy memory strategy = _strategy[key];
         if (aToB) {
-            return TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate) * 2 ** 32).quoteToBase(
-                amount, false
-            );
+            return
+                TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate)).quoteToBase(amount, false);
         } else {
             return Tick.wrap(
-                -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate) * 2 ** 32))
+                -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate)))
             ).quoteToBase(amount, false);
         }
     }

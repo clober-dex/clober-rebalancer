@@ -100,8 +100,8 @@ contract SimpleCouponStrategyTest is Test {
         (Tick bidTick, Tick askTick) = strategy.calculateCouponTick(key);
         assertEq(Tick.unwrap(bidTick), -57340, "BID_TICK");
         assertEq(Tick.unwrap(askTick), 53363, "ASK_TICK");
-        assertEq(FixedPointMathLib.mulDivDown(bidTick.toPrice(), 1e18, 1 << 128), 3235042158527404, "BID_PRICE");
-        assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 128), 207687221007653627846, "ASK_PRICE");
+        assertEq(FixedPointMathLib.mulDivDown(bidTick.toPrice(), 1e18, 1 << 96), 3235042158527404, "BID_PRICE");
+        assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 96), 207687221007653627846, "ASK_PRICE");
     }
 
     function testConvertAmount() public view {
