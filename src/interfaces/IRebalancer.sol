@@ -16,6 +16,7 @@ interface IRebalancer {
     error InvalidLockCaller();
     error LockFailure();
     error InvalidMaker();
+    error InvalidAmount();
     error InvalidValue();
 
     event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy);

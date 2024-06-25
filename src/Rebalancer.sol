@@ -103,48 +103,64 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     }
 
     function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256 mintAmount) {
-        (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
         Pool storage pool = _pools[key];
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
-        if (bookKeyA.quote.equals(CurrencyLibrary.NATIVE)) {
-            if (msg.value != amountA) revert InvalidValue();
+
+        uint256 supply = totalSupply[uint256(key)];
+        if (supply == 0) {
+            if (amountA == 0 || amountB == 0) revert InvalidAmount();
+            mintAmount = amountA;
+        } else {
+            uint256 mintA;
+            uint256 mintB;
+            (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
+            if (liquidityA == 0) {
+                amountA = 0;
+            } else {
+                mintA = FixedPointMathLib.mulDivDown(amountA, supply, liquidityA);
+            }
+            if (liquidityB == 0) {
+                amountB = 0;
+            } else {
+                mintB = FixedPointMathLib.mulDivDown(amountB, supply, liquidityB);
+            }
+
+            if (mintA > mintB) {
+                mintAmount = mintB;
+                amountA = FixedPointMathLib.mulDivUp(liquidityA, mintAmount, supply);
+            } else {
+                mintAmount = mintA;
+                amountB = FixedPointMathLib.mulDivUp(liquidityB, mintAmount, supply);
+            }
+        }
+
+        uint256 refund = msg.value;
+        if (bookKeyA.quote.isNative()) {
+            if (msg.value < amountA) {
+                revert InvalidValue();
+            } else {
+                unchecked {
+                    refund -= amountA;
+                }
+            }
         } else {
             IERC20(Currency.unwrap(bookKeyA.quote)).safeTransferFrom(msg.sender, address(this), amountA);
         }
-        if (bookKeyA.base.equals(CurrencyLibrary.NATIVE)) {
-            if (msg.value != amountB) revert InvalidValue();
+        if (bookKeyA.base.isNative()) {
+            if (msg.value < amountB) {
+                revert InvalidValue();
+            } else {
+                unchecked {
+                    refund -= amountB;
+                }
+            }
         } else {
             IERC20(Currency.unwrap(bookKeyA.base)).safeTransferFrom(msg.sender, address(this), amountB);
         }
 
         pool.reserveA += amountA;
         pool.reserveB += amountB;
-        uint256 supply = totalSupply[uint256(key)];
-        if (supply == 0) {
-            mintAmount = amountA + pool.strategy.convertAmount(key, amountB, false);
-        } else {
-            uint256 amountALiquidityB = amountA * liquidityB;
-            uint256 amountBLiquidityA = amountB * liquidityA;
-            if (amountALiquidityB > amountBLiquidityA) {
-                int256 fee = bookManager.getBookKey(pool.bookIdB).takerPolicy.calculateFee(liquidityA, false);
-                uint256 denominator = fee > 0 ? liquidityA - uint256(fee) : liquidityA + uint256(-fee);
-                denominator = pool.strategy.convertAmount(key, denominator, true) + liquidityB;
-                uint256 numerator;
-                unchecked {
-                    numerator = amountALiquidityB - amountBLiquidityA;
-                }
-                mintAmount = FixedPointMathLib.mulDivDown(amountA - numerator / denominator, supply, liquidityA);
-            } else {
-                int256 fee = bookKeyA.takerPolicy.calculateFee(liquidityB, false);
-                uint256 denominator = fee > 0 ? liquidityB - uint256(fee) : liquidityB + uint256(-fee);
-                denominator = pool.strategy.convertAmount(key, denominator, false) + liquidityA;
-                uint256 numerator;
-                unchecked {
-                    numerator = amountBLiquidityA - amountALiquidityB;
-                }
-                mintAmount = FixedPointMathLib.mulDivDown(amountB - numerator / denominator, supply, liquidityB);
-            }
-        }
+
         _mint(msg.sender, uint256(key), mintAmount);
 
         emit Mint(msg.sender, key, amountA, amountB, mintAmount);
