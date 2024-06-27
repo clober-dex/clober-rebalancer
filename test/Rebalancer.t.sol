@@ -221,7 +221,7 @@ contract RebalancerTest is Test {
     }
 
     function testBurn() public {
-        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245);
+        rebalancer.mint(key, 1e18, 1e21);
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
         uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
@@ -230,21 +230,19 @@ contract RebalancerTest is Test {
         uint256 beforeBBalance = tokenB.balanceOf(address(this));
 
         vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Burn(
-            address(this), key, uint256(1e18 + 141231) / 2, uint256(1e21 + 241245) / 2, beforeSupply / 2
-        );
+        emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
         rebalancer.burn(key, beforeSupply / 2);
 
         IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
-        assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A"); // 500000070616
-        assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B"); // 120623
-        assertEq(afterLiquidityA, beforeLiquidityA - uint256(1e18 + 141231) / 2, "LIQUIDITY_A");
-        assertEq(afterLiquidityB, beforeLiquidityB - uint256(1e21 + 241245) / 2, "LIQUIDITY_B");
+        assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A");
+        assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B");
+        assertEq(afterLiquidityA, beforeLiquidityA - 1e18 / 2, "LIQUIDITY_A");
+        assertEq(afterLiquidityB, beforeLiquidityB - 1e21 / 2, "LIQUIDITY_B");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance - beforeSupply / 2, "LP_BALANCE");
-        assertEq(tokenA.balanceOf(address(this)) - beforeABalance, uint256(1e18 + 141231) / 2, "A_BALANCE");
-        assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, uint256(1e21 + 241245) / 2, "B_BALANCE");
+        assertEq(tokenA.balanceOf(address(this)) - beforeABalance, 1e18 / 2, "A_BALANCE");
+        assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, 1e21 / 2, "B_BALANCE");
     }
 
     function testRebalance() public {
