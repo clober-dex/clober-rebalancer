@@ -57,18 +57,6 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         askTick = Tick.wrap(-Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate))));
     }
 
-    function convertAmount(bytes32 key, uint256 amount, bool aToB) external view returns (uint256) {
-        CouponStrategy memory strategy = _strategy[key];
-        if (aToB) {
-            return
-                TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.bidRate)).quoteToBase(amount, false);
-        } else {
-            return Tick.wrap(
-                -Tick.unwrap(TickLibrary.fromPrice(calculateCouponPrice(strategy.epoch, strategy.askRate)))
-            ).quoteToBase(amount, false);
-        }
-    }
-
     function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
         external
         view

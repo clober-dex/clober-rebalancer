@@ -104,13 +104,6 @@ contract SimpleCouponStrategyTest is Test {
         assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 96), 207687221007653627846, "ASK_PRICE");
     }
 
-    function testConvertAmount() public view {
-        uint256 amount = 1e18;
-
-        assertEq(strategy.convertAmount(key, amount, true), 309114982432006754093, "A -> B");
-        assertEq(strategy.convertAmount(key, amount, false), 4814932739473404, "B -> A");
-    }
-
     function testComputeAllocation() public view {
         (SimpleCouponStrategy.Order[] memory bids, SimpleCouponStrategy.Order[] memory asks) =
             strategy.computeOrders(key, 1e18 + 123, 1e15 - 4435);

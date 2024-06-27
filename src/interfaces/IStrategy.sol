@@ -11,8 +11,6 @@ interface IStrategy {
         uint64 rawAmount;
     }
 
-    function convertAmount(bytes32 key, uint256 amount, bool aToB) external view returns (uint256);
-
     function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
         external
         view
