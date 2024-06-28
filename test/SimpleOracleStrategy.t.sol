@@ -72,6 +72,7 @@ contract SimpleOracleStrategyTest is Test {
         );
 
         _setReferencePrices(1e8, 3400 * 1e8);
+        strategy.setOperator(address(this), true);
     }
 
     // @dev mocking
@@ -121,7 +122,7 @@ contract SimpleOracleStrategyTest is Test {
     }
 
     function testUpdatePriceOwnership() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, (address(123))));
+        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.NotOperator.selector));
         vm.prank(address(123));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
     }

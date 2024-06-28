@@ -21,7 +21,9 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
 
     error InvalidPrice();
     error ExceedsThreshold();
+    error NotOperator();
 
+    event SetOperator(address indexed operator, bool status);
     event UpdateConfig(bytes32 indexed key, Config config);
     event UpdatePrice(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB);
 
@@ -30,6 +32,8 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     IOracle public immutable referenceOracle;
     IRebalancer public immutable rebalancer;
     IBookManager public immutable bookManager;
+
+    mapping(address => bool) public isOperator;
 
     struct Config {
         uint24 referenceThreshold;
@@ -50,6 +54,11 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     }
 
     mapping(bytes32 => Price) internal _prices;
+
+    modifier onlyOperator() {
+        if (!isOperator[msg.sender]) revert NotOperator();
+        _;
+    }
 
     constructor(IOracle referenceOracle_, IRebalancer rebalancer_, IBookManager bookManager_, address initialOwner)
         Ownable(initialOwner)
@@ -171,7 +180,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         return (true, priceA, priceB);
     }
 
-    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external onlyOwner {
+    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external onlyOperator {
         uint256 priceA = tickA.toPrice();
         uint256 priceB = Tick.wrap(-Tick.unwrap(tickB)).toPrice();
 
@@ -202,5 +211,10 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     function setConfig(bytes32 key, Config memory config) external onlyOwner {
         _configs[key] = config;
         emit UpdateConfig(key, config);
+    }
+
+    function setOperator(address operator, bool status) external onlyOwner {
+        isOperator[operator] = status;
+        emit SetOperator(operator, status);
     }
 }
