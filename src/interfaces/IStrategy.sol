@@ -14,5 +14,5 @@ interface IStrategy {
     function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
         external
         view
-        returns (Order[] memory, Order[] memory);
+        returns (Order[] memory ordersA, Order[] memory ordersB);
 }
