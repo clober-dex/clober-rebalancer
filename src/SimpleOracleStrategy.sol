@@ -20,6 +20,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     using TickLibrary for Tick;
 
     error InvalidPrice();
+    error ExceedsThreshold();
 
     event UpdateConfig(bytes32 indexed key, Config config);
     event UpdatePrice(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB);
@@ -174,7 +175,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdA) / RATE_PRECISION > priceA
                 || oraclePrice * (RATE_PRECISION + config.priceThresholdB) / RATE_PRECISION < priceB
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdB) / RATE_PRECISION > priceB
-        ) revert InvalidPrice();
+        ) revert ExceedsThreshold();
 
         (BookId bookIdA,) = rebalancer.getBookPairs(key);
 
