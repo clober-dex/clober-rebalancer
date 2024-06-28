@@ -59,6 +59,14 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         bookManager = bookManager_;
     }
 
+    function getConfig(bytes32 key) external view returns (Config memory) {
+        return _configs[key];
+    }
+
+    function getPrice(bytes32 key) external view returns (Price memory) {
+        return _prices[key];
+    }
+
     function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
         external
         view
