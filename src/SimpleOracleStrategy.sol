@@ -183,7 +183,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         uint8 decimalsB = IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals();
 
         // @dev Convert oracle price to the same decimals as the reference oracle
-        oraclePrice = oraclePrice * 10 ** decimalsA / 10 ** decimalsB;
+        oraclePrice = oraclePrice * 10 ** decimalsB / 10 ** decimalsA;
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
 
         _prices[key] = Price({oraclePrice: SafeCast.toUint208(oraclePrice), tickA: tickA, tickB: tickB});
