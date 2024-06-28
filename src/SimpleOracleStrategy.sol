@@ -34,6 +34,8 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         uint24 referenceThreshold;
         uint24 rateA;
         uint24 rateB;
+        uint24 minRateA;
+        uint24 minRateB;
         uint24 priceThresholdA;
         uint24 priceThresholdB;
     }
@@ -68,26 +70,54 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         Config memory config = _configs[key];
         Price memory price = _prices[key];
 
-        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+        IBookManager.BookKey memory bookKeyA;
+        IBookManager.BookKey memory bookKeyB;
+        {
+            (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+            bookKeyA = bookManager.getBookKey(bookIdA);
+            bookKeyB = bookManager.getBookKey(bookIdB);
+        }
 
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
-
-        if (_isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
+        (bool validity, uint256 priceA, uint256 priceB) =
+            _isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base);
+        if (!validity) {
             return (ordersA, ordersB);
         }
+
+        (amountA, amountB) = _calculateAmounts(amountA, amountB, priceA, priceB, config);
 
         if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
         if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
 
-        ordersA[0] = Order({
-            tick: price.tickA,
-            rawAmount: SafeCast.toUint64(amountA * config.rateA / RATE_PRECISION / bookKeyA.unitSize)
-        });
-        ordersB[0] = Order({
-            tick: price.tickB,
-            rawAmount: SafeCast.toUint64(amountB * config.rateB / RATE_PRECISION / bookKeyB.unitSize)
-        });
+        ordersA[0] = Order({tick: price.tickA, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unitSize)});
+        ordersB[0] = Order({tick: price.tickB, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unitSize)});
+    }
+
+    function _calculateAmounts(uint256 amountA, uint256 amountB, uint256 priceA, uint256 priceB, Config memory config)
+        internal
+        pure
+        returns (uint256 resultA, uint256 resultB)
+    {
+        resultA = amountA * config.rateA / RATE_PRECISION;
+        resultB = amountB * config.rateB / RATE_PRECISION;
+
+        uint256 valueA = resultA * priceA;
+        uint256 valueB = resultB * priceB;
+
+        if (valueA > valueB) {
+            resultA = valueB / priceA;
+            valueA = resultA * priceA;
+        } else {
+            resultB = valueA / priceB;
+            valueB = resultB * priceB;
+        }
+
+        if (valueA < amountA * config.minRateA / RATE_PRECISION * priceA) {
+            resultA = amountA * config.minRateA / RATE_PRECISION;
+        }
+        if (valueB < amountB * config.minRateB / RATE_PRECISION * priceB) {
+            resultB = amountB * config.minRateB / RATE_PRECISION;
+        }
     }
 
     function isOraclePriceValid(bytes32 key) external view returns (bool) {
@@ -98,33 +128,38 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
 
-        return _isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base);
+        (bool validity,,) =
+            _isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base);
+        return validity;
     }
 
-    function _isOraclePriceValid(uint256 oraclePrice, uint256 referenceThreshold, Currency quote, Currency base)
-        internal
-        view
-        returns (bool)
-    {
+    function _isOraclePriceValid(
+        uint256 oraclePrice,
+        uint256 referenceThreshold,
+        Currency currencyA,
+        Currency currencyB
+    ) internal view returns (bool, uint256 priceA, uint256 priceB) {
         uint256 referencePrice;
         address[] memory assets = new address[](2);
-        assets[0] = Currency.unwrap(quote);
-        assets[1] = Currency.unwrap(base);
+        assets[0] = Currency.unwrap(currencyA);
+        assets[1] = Currency.unwrap(currencyB);
 
         try referenceOracle.getAssetsPrices(assets) returns (uint256[] memory prices) {
             // price = basePrice / quotePrice
             referencePrice = prices[1] * 10 ** referenceOracle.decimals() / prices[0];
+            priceA = prices[0];
+            priceB = prices[1];
         } catch {
-            return false;
+            return (false, 0, 0);
         }
 
         if (
             referencePrice * (RATE_PRECISION + referenceThreshold) / RATE_PRECISION < oraclePrice
                 || referencePrice * (RATE_PRECISION - referenceThreshold) / RATE_PRECISION > oraclePrice
         ) {
-            return false;
+            return (false, 0, 0);
         }
-        return true;
+        return (true, priceA, priceB);
     }
 
     function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external onlyOwner {
@@ -144,11 +179,11 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         (BookId bookIdA,) = rebalancer.getBookPairs(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        uint8 quoteDecimals = IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals();
-        uint8 baseDecimals = IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals();
+        uint8 decimalsA = IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals();
+        uint8 decimalsB = IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals();
 
         // @dev Convert oracle price to the same decimals as the reference oracle
-        oraclePrice = oraclePrice * 10 ** quoteDecimals / 10 ** baseDecimals;
+        oraclePrice = oraclePrice * 10 ** decimalsA / 10 ** decimalsB;
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
 
         _prices[key] = Price({oraclePrice: SafeCast.toUint208(oraclePrice), tickA: tickA, tickB: tickB});
