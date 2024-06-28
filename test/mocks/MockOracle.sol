@@ -11,6 +11,8 @@ contract MockOracle is IOracle {
 
     mapping(address => uint256) private _priceMap;
 
+    bool public isValid = true;
+
     function decimals() external pure returns (uint8) {
         return 8;
     }
@@ -20,6 +22,7 @@ contract MockOracle is IOracle {
     }
 
     function getAssetsPrices(address[] calldata assets) external view returns (uint256[] memory prices) {
+        if (!isValid) revert("");
         uint256 length = assets.length;
         prices = new uint256[](length);
         for (uint256 i = 0; i < length; ++i) {
@@ -52,4 +55,8 @@ contract MockOracle is IOracle {
     function setTimeout(uint256) external {}
 
     function setGracePeriod(uint256) external {}
+
+    function setValidity(bool _isValid) external {
+        isValid = _isValid;
+    }
 }
