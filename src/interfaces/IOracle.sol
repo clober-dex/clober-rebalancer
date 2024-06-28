@@ -3,6 +3,16 @@
 pragma solidity ^0.8.0;
 
 interface IOracle {
+    error LengthMismatch();
+    error InvalidTimeout();
+    error InvalidGracePeriod();
+
+    event SetSequencerOracle(address indexed newSequencerOracle);
+    event SetTimeout(uint256 newTimeout);
+    event SetGracePeriod(uint256 newGracePeriod);
+    event SetFallbackOracle(address indexed newFallbackOracle);
+    event SetFeed(address indexed asset, address[] feeds);
+
     function decimals() external view returns (uint8);
 
     function sequencerOracle() external view returns (address);
