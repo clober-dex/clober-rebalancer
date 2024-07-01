@@ -10,7 +10,7 @@ import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
-import {Epoch, EpochLibrary} from "./libraries/Epoch.sol";
+import {Epoch, EpochLibrary} from "./external/coupon-finance/Epoch.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 

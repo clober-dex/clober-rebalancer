@@ -187,7 +187,8 @@ contract SimpleOracleStrategyTest is Test {
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
         oracle.setValidity(false);
 
-        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
+        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) =
+            strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
         assertEq(ordersA.length, 0);
         assertEq(ordersB.length, 0);
     }
