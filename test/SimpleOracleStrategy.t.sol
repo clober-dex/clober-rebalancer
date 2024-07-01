@@ -37,7 +37,7 @@ contract SimpleOracleStrategyTest is Test {
 
         keyA = IBookManager.BookKey({
             base: Currency.wrap(address(tokenB)),
-            unitSize: 1e12,
+            unitSize: 1,
             quote: Currency.wrap(address(tokenA)),
             makerPolicy: FeePolicyLibrary.encode(true, -1000),
             hooks: IHooks(address(0)),

@@ -104,7 +104,7 @@ contract SimpleCouponStrategyTest is Test {
         assertEq(FixedPointMathLib.mulDivDown(askTick.toPrice(), 1e18, 1 << 96), 207687221007653627846, "ASK_PRICE");
     }
 
-    function testComputeAllocation() public view {
+    function testComputeOrders() public view {
         (SimpleCouponStrategy.Order[] memory bids, SimpleCouponStrategy.Order[] memory asks) =
             strategy.computeOrders(key, 1e18 + 123, 1e15 - 4435);
         assertEq(bids.length, 1, "BIDS_LENGTH");
