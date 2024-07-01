@@ -47,9 +47,9 @@ contract SimpleOracleStrategyTest is Test {
             base: Currency.wrap(address(tokenA)),
             unitSize: 1e12,
             quote: Currency.wrap(address(tokenB)),
-            makerPolicy: FeePolicyLibrary.encode(false, -1000),
+            makerPolicy: FeePolicyLibrary.encode(true, 1000),
             hooks: IHooks(address(0)),
-            takerPolicy: FeePolicyLibrary.encode(false, 1200)
+            takerPolicy: FeePolicyLibrary.encode(true, 1200)
         });
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
@@ -153,7 +153,35 @@ contract SimpleOracleStrategyTest is Test {
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195255));
     }
 
-    function computeOrders() public {}
+    function testComputeOrders() public {
+        // 1 ETH = 3367 USDT
+        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
 
-    function computeOrdersWhenOraclePriceIsInvalid() public {}
+        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) =
+            strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
+        assertEq(ordersA.length, 1);
+        assertEq(ordersB.length, 1);
+        assertEq(Tick.unwrap(ordersA[0].tick), -195304);
+        assertEq(Tick.unwrap(ordersB[0].tick), 194905);
+        assertEq(ordersA[0].rawAmount, 100100100);
+        assertEq(ordersB[0].rawAmount, 29663);
+
+        (ordersA, ordersB) = strategy.computeOrders(key, 10000 * 1e6, 1 * 1e18);
+        assertEq(ordersA.length, 1);
+        assertEq(ordersB.length, 1);
+        assertEq(Tick.unwrap(ordersA[0].tick), -195304);
+        assertEq(Tick.unwrap(ordersB[0].tick), 194905);
+        assertEq(ordersA[0].rawAmount, 33711089);
+        assertEq(ordersB[0].rawAmount, 9990);
+
+        (ordersA, ordersB) = strategy.computeOrders(key, 1000 * 1e6, 3 * 1e18);
+        assertEq(ordersA.length, 1);
+        assertEq(ordersB.length, 1);
+        assertEq(Tick.unwrap(ordersA[0].tick), -195304);
+        assertEq(Tick.unwrap(ordersB[0].tick), 194905);
+        assertEq(ordersA[0].rawAmount, 10010010);
+        assertEq(ordersB[0].rawAmount, 8991);
+    }
+
+    function testComputeOrdersWhenOraclePriceIsInvalid() public {}
 }
