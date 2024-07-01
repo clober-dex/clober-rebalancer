@@ -9,13 +9,14 @@ import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
-import {Currency} from "clober-dex/v2-core/libraries/Currency.sol";
+import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
 
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
 
 contract SimpleOracleStrategy is IStrategy, Ownable2Step {
+    using CurrencyLibrary for Currency;
     using FeePolicyLibrary for FeePolicy;
     using TickLibrary for Tick;
 
@@ -97,13 +98,18 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
             bookKeyB = bookManager.getBookKey(bookIdB);
         }
 
-        (bool validity, uint256 priceA, uint256 priceB) =
-            _isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base);
-        if (!validity) {
+        if (!_isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
             return (ordersA, ordersB);
         }
 
-        (amountA, amountB) = _calculateAmounts(amountA, amountB, priceA, priceB, config);
+        (amountA, amountB) = _calculateAmounts(
+            amountA,
+            amountB,
+            price.oraclePrice,
+            _getCurrencyDecimals(bookKeyA.quote),
+            _getCurrencyDecimals(bookKeyA.base),
+            config
+        );
 
         if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
         if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
@@ -112,30 +118,48 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         ordersB[0] = Order({tick: price.tickB, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unitSize)});
     }
 
-    function _calculateAmounts(uint256 amountA, uint256 amountB, uint256 priceA, uint256 priceB, Config memory config)
-        internal
-        pure
-        returns (uint256 resultA, uint256 resultB)
-    {
+    function _calculateAmounts(
+        uint256 amountA,
+        uint256 amountB,
+        uint256 oraclePrice,
+        uint8 decimalsA,
+        uint8 decimalsB,
+        Config memory config
+    ) internal view returns (uint256 resultA, uint256 resultB) {
+        // @dev Use the same decimals for both amounts to calculate the value properly
+        if (decimalsA > decimalsB) {
+            amountB = amountB * 10 ** (decimalsA - decimalsB);
+        } else if (decimalsA < decimalsB) {
+            amountA = amountA * 10 ** (decimalsB - decimalsA);
+        }
+
         resultA = amountA * config.rateA / RATE_PRECISION;
         resultB = amountB * config.rateB / RATE_PRECISION;
 
-        uint256 valueA = resultA * priceA;
-        uint256 valueB = resultB * priceB;
+        uint256 basePrice = 10 ** referenceOracle.decimals();
+        uint256 valueA = resultA * basePrice;
+        uint256 valueB = resultB * oraclePrice;
 
         if (valueA > valueB) {
-            resultA = valueB / priceA;
-            valueA = resultA * priceA;
+            resultA = valueB / basePrice;
+            valueA = resultA * basePrice;
         } else {
-            resultB = valueA / priceB;
-            valueB = resultB * priceB;
+            resultB = valueA / oraclePrice;
+            valueB = resultB * oraclePrice;
         }
 
-        if (valueA < amountA * config.minRateA / RATE_PRECISION * priceA) {
+        if (valueA < amountA * config.minRateA / RATE_PRECISION * basePrice) {
             resultA = amountA * config.minRateA / RATE_PRECISION;
         }
-        if (valueB < amountB * config.minRateB / RATE_PRECISION * priceB) {
+        if (valueB < amountB * config.minRateB / RATE_PRECISION * oraclePrice) {
             resultB = amountB * config.minRateB / RATE_PRECISION;
+        }
+
+        // @dev Turn back to original decimals
+        if (decimalsA > decimalsB) {
+            resultB = resultB / 10 ** (decimalsA - decimalsB);
+        } else if (decimalsA < decimalsB) {
+            resultA = resultA / 10 ** (decimalsB - decimalsA);
         }
     }
 
@@ -147,9 +171,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
 
-        (bool validity,,) =
-            _isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base);
-        return validity;
+        return _isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base);
     }
 
     function _isOraclePriceValid(
@@ -157,7 +179,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         uint256 referenceThreshold,
         Currency currencyA,
         Currency currencyB
-    ) internal view returns (bool, uint256 priceA, uint256 priceB) {
+    ) internal view returns (bool) {
         uint256 referencePrice;
         address[] memory assets = new address[](2);
         assets[0] = Currency.unwrap(currencyA);
@@ -166,19 +188,17 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         try referenceOracle.getAssetsPrices(assets) returns (uint256[] memory prices) {
             // price = basePrice / quotePrice
             referencePrice = prices[1] * 10 ** referenceOracle.decimals() / prices[0];
-            priceA = prices[0];
-            priceB = prices[1];
         } catch {
-            return (false, 0, 0);
+            return false;
         }
 
         if (
             referencePrice * (RATE_PRECISION + referenceThreshold) / RATE_PRECISION < oraclePrice
                 || referencePrice * (RATE_PRECISION - referenceThreshold) / RATE_PRECISION > oraclePrice
         ) {
-            return (false, 0, 0);
+            return false;
         }
-        return (true, priceA, priceB);
+        return true;
     }
 
     function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external onlyOperator {
@@ -198,8 +218,8 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         (BookId bookIdA,) = rebalancer.getBookPairs(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        uint8 decimalsA = IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals();
-        uint8 decimalsB = IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals();
+        uint8 decimalsA = _getCurrencyDecimals(bookKeyA.quote);
+        uint8 decimalsB = _getCurrencyDecimals(bookKeyA.base);
 
         // @dev Convert oracle price to the same decimals as the reference oracle
         oraclePrice = oraclePrice * 10 ** decimalsB / 10 ** decimalsA;
@@ -225,5 +245,9 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     function setOperator(address operator, bool status) external onlyOwner {
         isOperator[operator] = status;
         emit SetOperator(operator, status);
+    }
+
+    function _getCurrencyDecimals(Currency currency) internal view returns (uint8) {
+        return currency.isNative() ? 18 : IERC20Metadata(Currency.unwrap(currency)).decimals();
     }
 }
