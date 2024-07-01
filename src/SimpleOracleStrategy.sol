@@ -20,6 +20,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     using TickLibrary for Tick;
 
     error InvalidPrice();
+    error InvalidConfig();
     error ExceedsThreshold();
     error NotOperator();
 
@@ -209,6 +210,14 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     }
 
     function setConfig(bytes32 key, Config memory config) external onlyOwner {
+        if (
+            config.referenceThreshold > RATE_PRECISION || config.rateA > RATE_PRECISION || config.rateB > RATE_PRECISION
+                || config.minRateA > RATE_PRECISION || config.minRateB > RATE_PRECISION
+                || config.priceThresholdA > RATE_PRECISION || config.priceThresholdB > RATE_PRECISION
+        ) revert InvalidConfig();
+
+        if (config.rateA < config.minRateA || config.rateB < config.minRateB) revert InvalidConfig();
+
         _configs[key] = config;
         emit UpdateConfig(key, config);
     }
