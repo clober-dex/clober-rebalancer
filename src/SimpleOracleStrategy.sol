@@ -83,10 +83,6 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         view
         returns (Order[] memory ordersA, Order[] memory ordersB)
     {
-        // SimpleStrategy has only one bid and one ask order
-        ordersA = new Order[](1);
-        ordersB = new Order[](1);
-
         Config memory config = _configs[key];
         Price memory price = _prices[key];
 
@@ -101,6 +97,10 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
         if (!_isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
             return (ordersA, ordersB);
         }
+
+        // SimpleStrategy has only one bid and one ask order
+        ordersA = new Order[](1);
+        ordersB = new Order[](1);
 
         (amountA, amountB) = _calculateAmounts(
             amountA,
