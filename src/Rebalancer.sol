@@ -89,7 +89,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
             cancelable = uint256(int256(cancelable) + fee);
         } else {
             int256 fee = makerPolicy.calculateFee(claimable, false);
-            claimable = fee > 0 ? claimable - uint256(fee) : claimable + uint256(-fee);
+            claimable = uint256(int256(claimable) - fee);
         }
     }
 
