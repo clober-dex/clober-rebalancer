@@ -60,7 +60,7 @@ contract SimpleOracleStrategyTest is Test {
 
         strategy.setConfig(
             key,
-            SimpleOracleStrategy.Config({
+            ISimpleOracleStrategy.Config({
                 referenceThreshold: 40000, // 4%
                 rateA: 10000, // 1%
                 rateB: 10000, // 1%
@@ -103,7 +103,7 @@ contract SimpleOracleStrategyTest is Test {
 
     function testUpdatePrice() public {
         vm.expectEmit(address(strategy));
-        emit SimpleOracleStrategy.UpdatePrice(key, 3367_73789741, Tick.wrap(-195304), Tick.wrap(194905));
+        emit ISimpleOracleStrategy.UpdatePrice(key, 3367_73789741, Tick.wrap(-195304), Tick.wrap(194905));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
 
         SimpleOracleStrategy.Price memory price = strategy.getPrice(key);
@@ -112,7 +112,7 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(Tick.unwrap(price.tickB), 194905);
 
         vm.expectEmit(address(strategy));
-        emit SimpleOracleStrategy.UpdatePrice(key, 1238_98347920, Tick.wrap(-205304), Tick.wrap(204905));
+        emit ISimpleOracleStrategy.UpdatePrice(key, 1238_98347920, Tick.wrap(-205304), Tick.wrap(204905));
         strategy.updatePrice(key, Tick.wrap(-205100).toPrice(), Tick.wrap(-205304), Tick.wrap(204905));
 
         price = strategy.getPrice(key);
@@ -122,34 +122,34 @@ contract SimpleOracleStrategyTest is Test {
     }
 
     function testUpdatePriceOwnership() public {
-        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.NotOperator.selector));
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.NotOperator.selector));
         vm.prank(address(123));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
     }
 
     function testUpdatePriceWhenBidPriceIsHigherThanAskPrice() public {
-        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.InvalidPrice.selector));
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidPrice.selector));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195405));
     }
 
     function testUpdatePriceWhenPricesAreTooFarFromOraclePrice() public {
-        SimpleOracleStrategy.Config memory config = strategy.getConfig(key);
+        ISimpleOracleStrategy.Config memory config = strategy.getConfig(key);
         config.priceThresholdA = 1e4; // 1%
         config.priceThresholdB = 1e5; // 10%
         strategy.setConfig(key, config);
 
-        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.ExceedsThreshold.selector));
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
-        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.ExceedsThreshold.selector));
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-194954), Tick.wrap(194905));
 
         config.priceThresholdA = 1e5; // 10%
         config.priceThresholdB = 1e4; // 1%
         strategy.setConfig(key, config);
 
-        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.ExceedsThreshold.selector));
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905));
-        vm.expectRevert(abi.encodeWithSelector(SimpleOracleStrategy.ExceedsThreshold.selector));
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195255));
     }
 

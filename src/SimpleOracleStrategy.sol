@@ -2,32 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
-import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
-import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
-import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
-import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
+import "./interfaces/ISimpleOracleStrategy.sol";
 
-import {IStrategy} from "./interfaces/IStrategy.sol";
-import {IRebalancer} from "./interfaces/IRebalancer.sol";
-import {IOracle} from "./interfaces/IOracle.sol";
-
-contract SimpleOracleStrategy is IStrategy, Ownable2Step {
+contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     using CurrencyLibrary for Currency;
     using FeePolicyLibrary for FeePolicy;
     using TickLibrary for Tick;
-
-    error InvalidPrice();
-    error InvalidConfig();
-    error ExceedsThreshold();
-    error NotOperator();
-
-    event SetOperator(address indexed operator, bool status);
-    event UpdateConfig(bytes32 indexed key, Config config);
-    event UpdatePrice(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB);
 
     uint256 public constant RATE_PRECISION = 1e6;
 
@@ -36,25 +16,7 @@ contract SimpleOracleStrategy is IStrategy, Ownable2Step {
     IBookManager public immutable bookManager;
 
     mapping(address => bool) public isOperator;
-
-    struct Config {
-        uint24 referenceThreshold;
-        uint24 rateA;
-        uint24 rateB;
-        uint24 minRateA;
-        uint24 minRateB;
-        uint24 priceThresholdA;
-        uint24 priceThresholdB;
-    }
-
     mapping(bytes32 => Config) internal _configs;
-
-    struct Price {
-        uint208 oraclePrice;
-        Tick tickA;
-        Tick tickB;
-    }
-
     mapping(bytes32 => Price) internal _prices;
 
     modifier onlyOperator() {

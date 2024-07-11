@@ -2,11 +2,19 @@
 
 pragma solidity ^0.8.0;
 
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
-import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
-import {OrderId} from "clober-dex/v2-core/libraries/OrderId.sol";
-import {Currency} from "clober-dex/v2-core/libraries/Currency.sol";
+import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
+import {BookId, BookIdLibrary} from "clober-dex/v2-core/libraries/BookId.sol";
+import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
+import {OrderId, OrderIdLibrary} from "clober-dex/v2-core/libraries/OrderId.sol";
+import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
+import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+
 import {IStrategy} from "./IStrategy.sol";
+import {ERC6909Supply} from "../libraries/ERC6909Supply.sol";
 
 interface IRebalancer {
     error NotSelf();
