@@ -59,7 +59,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         if (orderListA.length > 0) {
             IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
             for (uint256 i; i < orderListA.length; ++i) {
-                (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyA, orderListA[i]);
+                (uint256 cancelable, uint256 claimable) =
+                    _getLiquidity(bookKeyA.makerPolicy, bookKeyA.unitSize, orderListA[i]);
                 liquidityA += cancelable;
                 liquidityB += claimable;
             }
@@ -67,26 +68,27 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         if (orderListB.length > 0) {
             IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
             for (uint256 i; i < orderListB.length; ++i) {
-                (uint256 cancelable, uint256 claimable) = _getLiquidity(bookKeyB, orderListB[i]);
+                (uint256 cancelable, uint256 claimable) =
+                    _getLiquidity(bookKeyB.makerPolicy, bookKeyB.unitSize, orderListB[i]);
                 liquidityA += claimable;
                 liquidityB += cancelable;
             }
         }
     }
 
-    function _getLiquidity(IBookManager.BookKey memory bookKey, OrderId orderId)
+    function _getLiquidity(FeePolicy makerPolicy, uint64 unitSize, OrderId orderId)
         internal
         view
         returns (uint256 cancelable, uint256 claimable)
     {
         IBookManager.OrderInfo memory orderInfo = bookManager.getOrder(orderId);
-        cancelable = uint256(orderInfo.open) * bookKey.unitSize;
-        claimable = orderId.getTick().quoteToBase(uint256(orderInfo.claimable) * bookKey.unitSize, false);
-        if (bookKey.makerPolicy.usesQuote()) {
-            int256 fee = bookKey.makerPolicy.calculateFee(cancelable, true);
+        cancelable = uint256(orderInfo.open) * unitSize;
+        claimable = orderId.getTick().quoteToBase(uint256(orderInfo.claimable) * unitSize, false);
+        if (makerPolicy.usesQuote()) {
+            int256 fee = makerPolicy.calculateFee(cancelable, true);
             cancelable = uint256(int256(cancelable) + fee);
         } else {
-            int256 fee = bookKey.makerPolicy.calculateFee(claimable, false);
+            int256 fee = makerPolicy.calculateFee(claimable, false);
             claimable = fee > 0 ? claimable - uint256(fee) : claimable + uint256(-fee);
         }
     }
