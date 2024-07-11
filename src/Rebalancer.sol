@@ -182,12 +182,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     }
 
     function lockAcquired(address lockCaller, bytes calldata data) external returns (bytes memory) {
-        if (msg.sender != address(bookManager)) {
-            revert InvalidLockAcquiredSender();
-        }
-        if (lockCaller != address(this)) {
-            revert InvalidLockCaller();
-        }
+        if (msg.sender != address(bookManager)) revert InvalidLockAcquiredSender();
+        if (lockCaller != address(this)) revert InvalidLockCaller();
 
         (bool success, bytes memory returnData) = address(this).call(data);
         if (success) return returnData;
@@ -209,12 +205,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
 
         BookId bookIdA = bookKeyA.toId();
         BookId bookIdB = bookKeyB.toId();
-        if (!bookManager.isOpened(bookIdA)) {
-            bookManager.open(bookKeyA, "");
-        }
-        if (!bookManager.isOpened(bookIdB)) {
-            bookManager.open(bookKeyB, "");
-        }
+        if (!bookManager.isOpened(bookIdA)) bookManager.open(bookKeyA, "");
+        if (!bookManager.isOpened(bookIdB)) bookManager.open(bookKeyB, "");
 
         key = _encodeKey(bookIdA, bookIdB);
         _pools[key].bookIdA = bookIdA;

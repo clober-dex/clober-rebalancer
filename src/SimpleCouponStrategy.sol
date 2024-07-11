@@ -38,9 +38,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
 
     function calculateCouponPrice(Epoch epoch, uint96 ratePerSecond) public view returns (uint256 price) {
         Epoch current = EpochLibrary.current();
-        if (current > epoch) {
-            return 0;
-        }
+        if (current > epoch) return 0;
         uint256 thisTimestamp = block.timestamp;
         price = FixedPointMathLib.rpow(PRECISION + ratePerSecond, epoch.endTime() - thisTimestamp, PRECISION);
         if (epoch > current) {
