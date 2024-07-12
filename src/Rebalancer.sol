@@ -97,7 +97,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         uint256 supply = totalSupply[uint256(key)];
         if (supply == 0) {
             if (amountA == 0 || amountB == 0) revert InvalidAmount();
-            mintAmount = amountA;
+            mintAmount = amountA > amountB ? amountA : amountB;
         } else {
             uint256 mintA;
             uint256 mintB;
