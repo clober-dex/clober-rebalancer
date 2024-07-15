@@ -30,10 +30,10 @@ if (!SKIP_LOAD) {
   const tasksPath = path.join(__dirname, 'task')
   if (fs.existsSync(tasksPath)) {
     fs.readdirSync(tasksPath)
-        .filter((pth) => pth.includes('.ts'))
-        .forEach((task) => {
-          require(`${tasksPath}/${task}`)
-        })
+      .filter((pth) => pth.includes('.ts'))
+      .forEach((task) => {
+        require(`${tasksPath}/${task}`)
+      })
   }
 }
 
