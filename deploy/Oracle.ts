@@ -1,6 +1,12 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { deployWithVerify, CHAINLINK_SEQUENCER_ORACLE, ORACLE_TIMEOUT, SEQUENCER_GRACE_PERIOD } from '../utils'
+import {
+  deployWithVerify,
+  CHAINLINK_SEQUENCER_ORACLE,
+  ORACLE_TIMEOUT,
+  SEQUENCER_GRACE_PERIOD,
+  SAFE_WALLET,
+} from '../utils'
 import { getChain, isDevelopmentNetwork } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
 import { arbitrum } from 'viem/chains'
@@ -20,7 +26,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   if (chain.testnet || isDevelopmentNetwork(chainId)) {
     owner = deployer
   } else if (chainId === arbitrum.id) {
-    owner = '0xfb976Bae0b3Ef71843F1c6c63da7Df2e44B3836d' // Safe
+    owner = SAFE_WALLET[chainId] // Safe
   } else {
     throw new Error('Unknown chain')
   }

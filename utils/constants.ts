@@ -17,6 +17,11 @@ export const ORACLE_TIMEOUT: { [chainId: number]: number } = {
   [arbitrumSepolia.id]: 24 * 3600,
 }
 
+export const SAFE_WALLET: { [chainId: number]: Address } = {
+  [base.id]: '0xfb976Bae0b3Ef71843F1c6c63da7Df2e44B3836d',
+  [arbitrum.id]: '0x290D9de8d51fDf4683Aa761865743a28909b2553',
+}
+
 export const SEQUENCER_GRACE_PERIOD: { [chainId: number]: number } = {
   [arbitrum.id]: 3600,
   [arbitrumSepolia.id]: 3600,
