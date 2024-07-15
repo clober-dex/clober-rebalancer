@@ -1,6 +1,7 @@
 # Compiler files
 cache/
 out/
+forge-cache/
 
 # Ignores development broadcast logs
 !/broadcast
@@ -9,11 +10,28 @@ out/
 
 # Docs
 docs/
+*.ansi
+lcov.info
 
 # Dotenv file
 .env
 
+node_modules
+coverage
+coverage.json
+
+#Hardhat files
+cache*
+artifacts*
+typechain/
+
 .idea/
 .DS_Store
+abi/
+types/
 .vscode/
+
+#vim
 **/.*.swp
+
+*-key.json
