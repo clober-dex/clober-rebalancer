@@ -3,8 +3,9 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IRebalancer.sol";
+import "./interfaces/IPoolStorage.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolStorage {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;

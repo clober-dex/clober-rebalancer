@@ -82,7 +82,7 @@ contract RebalancerTest is Test {
         vm.expectEmit(false, true, true, true, address(rebalancer));
         emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, address(strategy));
         bytes32 key1 = rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
-        IRebalancer.Pool memory pool = rebalancer.getPool(key1);
+        IPoolStorage.Pool memory pool = rebalancer.getPool(key1);
         assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
         assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
         (BookId idA, BookId idB) = rebalancer.getBookPairs(key1);
@@ -181,8 +181,8 @@ contract RebalancerTest is Test {
         rebalancer.mint(key, 1e18, 1e18);
         assertEq(rebalancer.totalSupply(uint256(key)), 1e18, "BEFORE_SUPPLY");
 
-        IRebalancer.Pool memory beforePool = rebalancer.getPool(key);
-        IRebalancer.Pool memory afterPool = beforePool;
+        IPoolStorage.Pool memory beforePool = rebalancer.getPool(key);
+        IPoolStorage.Pool memory afterPool = beforePool;
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = (beforeLiquidityA, beforeLiquidityB);
         uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
@@ -248,7 +248,7 @@ contract RebalancerTest is Test {
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
         rebalancer.burn(key, beforeSupply / 2);
 
-        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
         assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A");
@@ -269,7 +269,7 @@ contract RebalancerTest is Test {
         emit IRebalancer.Rebalance(key);
         rebalancer.rebalance(key);
 
-        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A"); // 1000141231
         assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B"); // 241245
@@ -293,7 +293,7 @@ contract RebalancerTest is Test {
         emit IRebalancer.Rebalance(key);
         rebalancer.rebalance(key);
 
-        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
 
         assertLt(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");

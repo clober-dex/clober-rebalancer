@@ -12,7 +12,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     uint256 public constant RATE_PRECISION = 1e6;
 
     IOracle public immutable referenceOracle;
-    IRebalancer public immutable rebalancer;
+    IPoolStorage public immutable poolStorage;
     IBookManager public immutable bookManager;
 
     mapping(address => bool) public isOperator;
@@ -24,11 +24,11 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         _;
     }
 
-    constructor(IOracle referenceOracle_, IRebalancer rebalancer_, IBookManager bookManager_, address initialOwner)
+    constructor(IOracle referenceOracle_, IPoolStorage poolStorage_, IBookManager bookManager_, address initialOwner)
         Ownable(initialOwner)
     {
         referenceOracle = referenceOracle_;
-        rebalancer = rebalancer_;
+        poolStorage = poolStorage_;
         bookManager = bookManager_;
     }
 
@@ -51,7 +51,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         IBookManager.BookKey memory bookKeyA;
         IBookManager.BookKey memory bookKeyB;
         {
-            (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+            (BookId bookIdA, BookId bookIdB) = poolStorage.getBookPairs(key);
             bookKeyA = bookManager.getBookKey(bookIdA);
             bookKeyB = bookManager.getBookKey(bookIdB);
         }
@@ -129,7 +129,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         Config memory config = _configs[key];
         Price memory price = _prices[key];
 
-        (BookId bookIdA,) = rebalancer.getBookPairs(key);
+        (BookId bookIdA,) = poolStorage.getBookPairs(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
 
@@ -177,7 +177,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdB) / RATE_PRECISION > priceB
         ) revert ExceedsThreshold();
 
-        (BookId bookIdA,) = rebalancer.getBookPairs(key);
+        (BookId bookIdA,) = poolStorage.getBookPairs(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
         uint8 decimalsA = _getCurrencyDecimals(bookKeyA.quote);

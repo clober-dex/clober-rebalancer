@@ -12,7 +12,7 @@ import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
 
 import {IStrategy} from "./IStrategy.sol";
-import {IRebalancer} from "./IRebalancer.sol";
+import {IPoolStorage} from "./IPoolStorage.sol";
 import {IOracle} from "./IOracle.sol";
 
 interface ISimpleOracleStrategy is IStrategy {
@@ -42,13 +42,22 @@ interface ISimpleOracleStrategy is IStrategy {
     }
 
     function referenceOracle() external view returns (IOracle);
-    function rebalancer() external view returns (IRebalancer);
+
+    function poolStorage() external view returns (IPoolStorage);
+
     function bookManager() external view returns (IBookManager);
+
     function isOperator(address operator) external view returns (bool);
+
     function getConfig(bytes32 key) external view returns (Config memory);
+
     function getPrice(bytes32 key) external view returns (Price memory);
+
     function isOraclePriceValid(bytes32 key) external view returns (bool);
+
     function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external;
+
     function setConfig(bytes32 key, Config memory config) external;
+
     function setOperator(address operator, bool status) external;
 }

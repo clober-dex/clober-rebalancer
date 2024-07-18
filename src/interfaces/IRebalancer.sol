@@ -13,7 +13,6 @@ import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
-import {IStrategy} from "./IStrategy.sol";
 import {ERC6909Supply} from "../libraries/ERC6909Supply.sol";
 
 interface IRebalancer {
@@ -32,22 +31,6 @@ interface IRebalancer {
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
 
-    struct Pool {
-        BookId bookIdA;
-        BookId bookIdB;
-        IStrategy strategy;
-        uint256 reserveA;
-        uint256 reserveB;
-        OrderId[] orderListA;
-        OrderId[] orderListB;
-    }
-
-    function bookPair(BookId bookId) external view returns (BookId);
-
-    function getPool(bytes32 key) external view returns (Pool memory);
-
-    function getBookPairs(bytes32 key) external view returns (BookId bookIdA, BookId bookIdB);
-
     function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
 
     function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
@@ -59,6 +42,4 @@ interface IRebalancer {
     function burn(bytes32 key, uint256 amount) external returns (uint256, uint256);
 
     function rebalance(bytes32 key) external;
-
-    function setStrategy(bytes32 key, address strategy) external;
 }

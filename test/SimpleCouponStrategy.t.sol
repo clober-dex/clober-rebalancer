@@ -51,7 +51,7 @@ contract SimpleCouponStrategyTest is Test {
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
 
-        strategy = new SimpleCouponStrategy(IRebalancer(address(this)), bookManager, address(this));
+        strategy = new SimpleCouponStrategy(IPoolStorage(address(this)), bookManager, address(this));
 
         key = bytes32(uint256(123123));
 

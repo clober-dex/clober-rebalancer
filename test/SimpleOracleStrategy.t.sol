@@ -54,7 +54,7 @@ contract SimpleOracleStrategyTest is Test {
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
 
-        strategy = new SimpleOracleStrategy(oracle, IRebalancer(address(this)), bookManager, address(this));
+        strategy = new SimpleOracleStrategy(oracle, IPoolStorage(address(this)), bookManager, address(this));
 
         key = bytes32(uint256(123123));
 

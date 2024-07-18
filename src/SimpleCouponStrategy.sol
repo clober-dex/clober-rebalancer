@@ -12,14 +12,14 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {Epoch, EpochLibrary} from "./external/coupon-finance/Epoch.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
-import {IRebalancer} from "./interfaces/IRebalancer.sol";
+import {IPoolStorage} from "./interfaces/IPoolStorage.sol";
 
 contract SimpleCouponStrategy is IStrategy, Ownable2Step {
     using FeePolicyLibrary for FeePolicy;
     using TickLibrary for Tick;
     using EpochLibrary for Epoch;
 
-    IRebalancer public immutable rebalancer;
+    IPoolStorage public immutable poolStorage;
     IBookManager public immutable bookManager;
     uint256 public constant PRECISION = 1 << 96;
 
@@ -31,8 +31,8 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
 
     mapping(bytes32 key => CouponStrategy) private _strategy;
 
-    constructor(IRebalancer rebalancer_, IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
-        rebalancer = rebalancer_;
+    constructor(IPoolStorage poolStorage_, IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
+        poolStorage = poolStorage_;
         bookManager = bookManager_;
     }
 
@@ -63,7 +63,7 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         bids = new Order[](1);
         asks = new Order[](1);
 
-        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+        (BookId bookIdA, BookId bookIdB) = poolStorage.getBookPairs(key);
         (Tick bidTick, Tick askTick) = calculateCouponTick(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
