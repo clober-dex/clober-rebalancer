@@ -235,6 +235,16 @@ contract RebalancerTest is Test {
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance, "LP_BALANCE_2");
     }
 
+    function testMintCheckRefund() public {
+        vm.deal(address(this), 1 ether);
+        vm.deal(address(rebalancer), 1 ether);
+
+        uint256 beforeThisBalance = address(this).balance;
+        rebalancer.mint{value: 0.5 ether}(key, 1e18, 1e18);
+
+        assertEq(address(this).balance, beforeThisBalance);
+    }
+
     function testBurn() public {
         rebalancer.mint(key, 1e18, 1e21);
 
@@ -306,4 +316,6 @@ contract RebalancerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidBookPair.selector));
         rebalancer.rebalance(bytes32(uint256(0x123)));
     }
+
+    receive() external payable {}
 }

@@ -153,6 +153,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         _mint(msg.sender, uint256(key), mintAmount);
 
         emit Mint(msg.sender, key, amountA, amountB, mintAmount);
+
+        if (refund > 0) {
+            CurrencyLibrary.NATIVE.transfer(msg.sender, refund);
+        }
     }
 
     function burn(bytes32 key, uint256 amount) external returns (uint256, uint256) {
