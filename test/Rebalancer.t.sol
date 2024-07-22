@@ -137,6 +137,12 @@ contract RebalancerTest is Test {
         rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
     }
 
+    function testOpenTwice() public {
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.AlreadyOpened.selector));
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
+    }
+
     function testMintInitiallyWithZeroAmount() public {
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "INITIAL_SUPPLY");
 

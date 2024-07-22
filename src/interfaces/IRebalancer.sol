@@ -19,6 +19,7 @@ interface IRebalancer {
     error NotSelf();
     error InvalidHook();
     error InvalidBookPair();
+    error AlreadyOpened();
     error InvalidLockAcquiredSender();
     error InvalidLockCaller();
     error LockFailure();

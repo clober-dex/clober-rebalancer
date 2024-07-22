@@ -204,6 +204,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         if (!bookManager.isOpened(bookIdB)) bookManager.open(bookKeyB, "");
 
         key = _encodeKey(bookIdA, bookIdB, salt);
+        if (_pools[key].strategy != IStrategy(address(0))) revert AlreadyOpened();
+
         _pools[key].bookIdA = bookIdA;
         _pools[key].bookIdB = bookIdB;
         _pools[key].strategy = IStrategy(strategy);
