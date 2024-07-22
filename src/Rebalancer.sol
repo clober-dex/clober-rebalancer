@@ -27,11 +27,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         bookManager = bookManager_;
     }
 
-    function decimals(uint256 id) external view returns (uint8) {
-        IBookManager.BookKey memory bookKey = bookManager.getBookKey(_pools[bytes32(id)].bookIdA);
-        uint8 quoteDecimals = bookKey.quote.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKey.quote)).decimals();
-        uint8 baseDecimals = bookKey.base.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKey.base)).decimals();
-        return quoteDecimals > baseDecimals ? quoteDecimals : baseDecimals;
+    function decimals(uint256) external pure returns (uint8) {
+        return 18;
     }
 
     function getPool(bytes32 key) external view returns (Pool memory) {
@@ -108,7 +105,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         uint256 supply = totalSupply[uint256(key)];
         if (supply == 0) {
             if (amountA == 0 || amountB == 0) revert InvalidAmount();
-            mintAmount = amountA > amountB ? amountA : amountB;
+            uint8 decimalsA =
+                bookKeyA.quote.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals();
+            uint8 decimalsB = bookKeyA.base.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals();
+            // @dev If the decimals > 18, it will revert.
+            uint256 _amountA = amountA * 10 ** (18 - decimalsA);
+            uint256 _amountB = amountB * 10 ** (18 - decimalsB);
+            mintAmount = _amountA > _amountB ? _amountA : _amountB;
         } else {
             uint256 mintA;
             uint256 mintB;
