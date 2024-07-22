@@ -27,6 +27,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         bookManager = bookManager_;
     }
 
+    function decimals(uint256 id) external view returns (uint8) {
+        IBookManager.BookKey memory bookKey = bookManager.getBookKey(_pools[bytes32(id)].bookIdA);
+        uint8 quoteDecimals = bookKey.quote.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKey.quote)).decimals();
+        uint8 baseDecimals = bookKey.base.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKey.base)).decimals();
+        return quoteDecimals > baseDecimals ? quoteDecimals : baseDecimals;
+    }
+
     function getPool(bytes32 key) external view returns (Pool memory) {
         return _pools[key];
     }

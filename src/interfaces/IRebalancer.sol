@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
 import {BookId, BookIdLibrary} from "clober-dex/v2-core/libraries/BookId.sol";
