@@ -80,13 +80,16 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
     }
 
-    function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        external
-        onlyOwner
-        returns (bytes32)
-    {
+    function open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        bytes32 salt,
+        address strategy
+    ) external onlyOwner returns (bytes32) {
         return abi.decode(
-            bookManager.lock(address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy)),
+            bookManager.lock(
+                address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, salt, strategy)
+            ),
             (bytes32)
         );
     }
@@ -186,11 +189,12 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
     }
 
-    function _open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        public
-        selfOnly
-        returns (bytes32 key)
-    {
+    function _open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        bytes32 salt,
+        address strategy
+    ) public selfOnly returns (bytes32 key) {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         if (address(bookKeyA.hooks) != address(0) || address(bookKeyB.hooks) != address(0)) revert InvalidHook();
 
@@ -199,14 +203,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         if (!bookManager.isOpened(bookIdA)) bookManager.open(bookKeyA, "");
         if (!bookManager.isOpened(bookIdB)) bookManager.open(bookKeyB, "");
 
-        key = _encodeKey(bookIdA, bookIdB);
+        key = _encodeKey(bookIdA, bookIdB, salt);
         _pools[key].bookIdA = bookIdA;
         _pools[key].bookIdB = bookIdB;
         _pools[key].strategy = IStrategy(strategy);
         bookPair[bookIdA] = bookIdB;
         bookPair[bookIdB] = bookIdA;
 
-        emit Open(key, bookIdA, bookIdB, strategy);
+        emit Open(key, bookIdA, bookIdB, salt, strategy);
     }
 
     function _burnAndRebalance(bytes32 key, address user, uint256 burnAmount)
@@ -319,9 +323,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         return liquidity;
     }
 
-    function _encodeKey(BookId bookIdA, BookId bookIdB) internal pure returns (bytes32) {
+    function _encodeKey(BookId bookIdA, BookId bookIdB, bytes32 salt) internal pure returns (bytes32) {
         if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
-        return keccak256(abi.encodePacked(bookIdA, bookIdB));
+        return keccak256(abi.encodePacked(bookIdA, bookIdB, salt));
     }
 
     function setStrategy(bytes32 key, address strategy) external onlyOwner {
