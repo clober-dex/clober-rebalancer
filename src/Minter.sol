@@ -10,7 +10,6 @@ contract Minter {
     using PermitParamsLibrary for *;
     using SafeERC20 for IERC20;
 
-    error InsufficientBalance();
     error RouterSwapFailed(bytes message);
     error InsufficientLpAmount();
 
@@ -45,15 +44,11 @@ contract Minter {
         currencyAPermitParams.tryPermit(Currency.unwrap(bookKey.quote), msg.sender, address(this));
         currencyBPermitParams.tryPermit(Currency.unwrap(bookKey.base), msg.sender, address(this));
 
-        if (bookKey.quote.isNative()) {
-            if (address(this).balance < amountA) revert InsufficientBalance();
-        } else {
+        if (!bookKey.quote.isNative()) {
             IERC20(Currency.unwrap(bookKey.quote)).safeTransferFrom(msg.sender, address(this), amountA);
         }
 
-        if (bookKey.base.isNative()) {
-            if (address(this).balance < amountB) revert InsufficientBalance();
-        } else {
+        if (!bookKey.base.isNative()) {
             IERC20(Currency.unwrap(bookKey.base)).safeTransferFrom(msg.sender, address(this), amountB);
         }
 
