@@ -61,9 +61,7 @@ contract Minter {
             _swap(swapParams);
         }
 
-        uint256 lpAmount = rebalancer.mint{value: address(this).balance}(
-            key, bookKey.quote.balanceOfSelf(), bookKey.base.balanceOfSelf()
-        );
+        uint256 lpAmount = _mint(key, bookKey.quote, bookKey.base);
         if (lpAmount < minLpAmount) revert InsufficientLpAmount();
 
         rebalancer.transfer(msg.sender, uint256(key), lpAmount);
@@ -75,18 +73,28 @@ contract Minter {
     }
 
     function _swap(SwapParams calldata swapParams) internal {
-        uint256 value;
-        if (swapParams.inCurrency.isNative()) {
-            value = swapParams.amount;
-        } else {
-            IERC20(Currency.unwrap(swapParams.inCurrency)).approve(router, swapParams.amount);
-        }
+        uint256 value = swapParams.inCurrency.isNative() ? swapParams.amount : 0;
+        _approve(swapParams.inCurrency, router, swapParams.amount);
 
         (bool success, bytes memory result) = router.call{value: value}(swapParams.data);
         if (!success) revert RouterSwapFailed(string(result));
 
-        if (!swapParams.inCurrency.isNative()) {
-            IERC20(Currency.unwrap(swapParams.inCurrency)).approve(router, 0);
+        _approve(swapParams.inCurrency, router, 0);
+    }
+
+    function _mint(bytes32 key, Currency quote, Currency base) internal returns (uint256 lpAmount) {
+        uint256 quoteBalance = quote.balanceOfSelf();
+        uint256 baseBalance = base.balanceOfSelf();
+        _approve(quote, address(rebalancer), quoteBalance);
+        _approve(base, address(rebalancer), baseBalance);
+        lpAmount = rebalancer.mint{value: address(this).balance}(key, quote.balanceOfSelf(), base.balanceOfSelf());
+        _approve(quote, address(rebalancer), 0);
+        _approve(base, address(rebalancer), 0);
+    }
+
+    function _approve(Currency currency, address spender, uint256 amount) internal {
+        if (!currency.isNative()) {
+            IERC20(Currency.unwrap(currency)).approve(spender, amount);
         }
     }
 
