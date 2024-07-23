@@ -114,26 +114,25 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             uint256 _amountB = amountB * complementB;
             mintAmount = _amountA > _amountB ? _amountA : _amountB;
         } else {
-            uint256 mintA;
-            uint256 mintB;
             (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
-            if (liquidityA == 0) {
+            if (liquidityA == 0 && liquidityB == 0) {
+                mintAmount = amountA = amountB = 0;
+            } else if (liquidityA == 0) {
+                mintAmount = FixedPointMathLib.mulDivDown(amountB, supply, liquidityB);
                 amountA = 0;
-            } else {
-                mintA = FixedPointMathLib.mulDivDown(amountA, supply, liquidityA);
-            }
-            if (liquidityB == 0) {
+            } else if (liquidityB == 0) {
+                mintAmount = FixedPointMathLib.mulDivDown(amountA, supply, liquidityA);
                 amountB = 0;
             } else {
-                mintB = FixedPointMathLib.mulDivDown(amountB, supply, liquidityB);
-            }
-
-            if (mintA > mintB) {
-                mintAmount = mintB;
-                amountA = FixedPointMathLib.mulDivUp(liquidityA, mintAmount, supply);
-            } else {
-                mintAmount = mintA;
-                amountB = FixedPointMathLib.mulDivUp(liquidityB, mintAmount, supply);
+                uint256 mintA = FixedPointMathLib.mulDivDown(amountA, supply, liquidityA);
+                uint256 mintB = FixedPointMathLib.mulDivDown(amountB, supply, liquidityB);
+                if (mintA > mintB) {
+                    mintAmount = mintB;
+                    amountA = FixedPointMathLib.mulDivUp(liquidityA, mintAmount, supply);
+                } else {
+                    mintAmount = mintA;
+                    amountB = FixedPointMathLib.mulDivUp(liquidityB, mintAmount, supply);
+                }
             }
         }
 
