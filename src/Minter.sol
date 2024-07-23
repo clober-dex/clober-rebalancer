@@ -11,7 +11,7 @@ contract Minter {
     using SafeERC20 for IERC20;
 
     error InsufficientBalance();
-    error RouterSwapFailed(string message);
+    error RouterSwapFailed(bytes message);
     error InsufficientLpAmount();
 
     IBookManager public immutable bookManager;
@@ -77,7 +77,7 @@ contract Minter {
         _approve(swapParams.inCurrency, router, swapParams.amount);
 
         (bool success, bytes memory result) = router.call{value: value}(swapParams.data);
-        if (!success) revert RouterSwapFailed(string(result));
+        if (!success) revert RouterSwapFailed(result);
 
         _approve(swapParams.inCurrency, router, 0);
     }
