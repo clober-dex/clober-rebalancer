@@ -105,12 +105,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         uint256 supply = totalSupply[uint256(key)];
         if (supply == 0) {
             if (amountA == 0 || amountB == 0) revert InvalidAmount();
-            uint8 decimalsA =
-                bookKeyA.quote.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals();
-            uint8 decimalsB = bookKeyA.base.isNative() ? 18 : IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals();
             // @dev If the decimals > 18, it will revert.
-            uint256 _amountA = amountA * 10 ** (18 - decimalsA);
-            uint256 _amountB = amountB * 10 ** (18 - decimalsB);
+            uint256 complementA =
+                bookKeyA.quote.isNative() ? 1 : 10 ** (18 - IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals());
+            uint256 complementB =
+                bookKeyA.base.isNative() ? 1 : 10 ** (18 - IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals());
+            uint256 _amountA = amountA * complementA;
+            uint256 _amountB = amountB * complementB;
             mintAmount = _amountA > _amountB ? _amountA : _amountB;
         } else {
             uint256 mintA;
