@@ -57,7 +57,9 @@ contract Minter {
             IERC20(Currency.unwrap(bookKey.base)).safeTransferFrom(msg.sender, address(this), amountB);
         }
 
-        _swap(swapParams);
+        if (swapParams.data.length > 0) {
+            _swap(swapParams);
+        }
 
         uint256 lpAmount = rebalancer.mint{value: address(this).balance}(
             key, bookKey.quote.balanceOfSelf(), bookKey.base.balanceOfSelf()
