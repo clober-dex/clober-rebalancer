@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
 import {BookId, BookIdLibrary} from "clober-dex/v2-core/libraries/BookId.sol";
@@ -19,6 +20,7 @@ interface IRebalancer {
     error NotSelf();
     error InvalidHook();
     error InvalidBookPair();
+    error AlreadyOpened();
     error InvalidLockAcquiredSender();
     error InvalidLockCaller();
     error LockFailure();
@@ -26,16 +28,19 @@ interface IRebalancer {
     error InvalidAmount();
     error InvalidValue();
 
-    event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, address strategy);
+    event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, bytes32 salt, address strategy);
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
 
     function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
 
-    function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        external
-        returns (bytes32 key);
+    function open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        bytes32 salt,
+        address strategy
+    ) external returns (bytes32 key);
 
     function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256);
 

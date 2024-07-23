@@ -27,6 +27,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         bookManager = bookManager_;
     }
 
+    function decimals(uint256) external pure returns (uint8) {
+        return 18;
+    }
+
     function getPool(bytes32 key) external view returns (Pool memory) {
         return _pools[key];
     }
@@ -80,13 +84,16 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
     }
 
-    function open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        external
-        onlyOwner
-        returns (bytes32)
-    {
+    function open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        bytes32 salt,
+        address strategy
+    ) external onlyOwner returns (bytes32) {
         return abi.decode(
-            bookManager.lock(address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, strategy)),
+            bookManager.lock(
+                address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, salt, strategy)
+            ),
             (bytes32)
         );
     }
@@ -98,7 +105,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         uint256 supply = totalSupply[uint256(key)];
         if (supply == 0) {
             if (amountA == 0 || amountB == 0) revert InvalidAmount();
-            mintAmount = amountA > amountB ? amountA : amountB;
+            // @dev If the decimals > 18, it will revert.
+            uint256 complementA =
+                bookKeyA.quote.isNative() ? 1 : 10 ** (18 - IERC20Metadata(Currency.unwrap(bookKeyA.quote)).decimals());
+            uint256 complementB =
+                bookKeyA.base.isNative() ? 1 : 10 ** (18 - IERC20Metadata(Currency.unwrap(bookKeyA.base)).decimals());
+            uint256 _amountA = amountA * complementA;
+            uint256 _amountB = amountB * complementB;
+            mintAmount = _amountA > _amountB ? _amountA : _amountB;
         } else {
             uint256 mintA;
             uint256 mintB;
@@ -186,11 +200,12 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
     }
 
-    function _open(IBookManager.BookKey calldata bookKeyA, IBookManager.BookKey calldata bookKeyB, address strategy)
-        public
-        selfOnly
-        returns (bytes32 key)
-    {
+    function _open(
+        IBookManager.BookKey calldata bookKeyA,
+        IBookManager.BookKey calldata bookKeyB,
+        bytes32 salt,
+        address strategy
+    ) public selfOnly returns (bytes32 key) {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         if (address(bookKeyA.hooks) != address(0) || address(bookKeyB.hooks) != address(0)) revert InvalidHook();
 
@@ -199,14 +214,16 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         if (!bookManager.isOpened(bookIdA)) bookManager.open(bookKeyA, "");
         if (!bookManager.isOpened(bookIdB)) bookManager.open(bookKeyB, "");
 
-        key = _encodeKey(bookIdA, bookIdB);
+        key = _encodeKey(bookIdA, bookIdB, salt);
+        if (_pools[key].strategy != IStrategy(address(0))) revert AlreadyOpened();
+
         _pools[key].bookIdA = bookIdA;
         _pools[key].bookIdB = bookIdB;
         _pools[key].strategy = IStrategy(strategy);
         bookPair[bookIdA] = bookIdB;
         bookPair[bookIdB] = bookIdA;
 
-        emit Open(key, bookIdA, bookIdB, strategy);
+        emit Open(key, bookIdA, bookIdB, salt, strategy);
     }
 
     function _burnAndRebalance(bytes32 key, address user, uint256 burnAmount)
@@ -319,9 +336,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         return liquidity;
     }
 
-    function _encodeKey(BookId bookIdA, BookId bookIdB) internal pure returns (bytes32) {
+    function _encodeKey(BookId bookIdA, BookId bookIdB, bytes32 salt) internal pure returns (bytes32) {
         if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
-        return keccak256(abi.encodePacked(bookIdA, bookIdB));
+        return keccak256(abi.encodePacked(bookIdA, bookIdB, salt));
     }
 
     function setStrategy(bytes32 key, address strategy) external onlyOwner {

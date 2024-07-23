@@ -60,7 +60,7 @@ contract RebalancerTest is Test {
         unopenedKeyB = keyB;
         unopenedKeyB.unitSize = 1e13;
 
-        key = rebalancer.open(keyA, keyB, address(strategy));
+        key = rebalancer.open(keyA, keyB, 0x0, address(strategy));
 
         strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
 
@@ -80,8 +80,8 @@ contract RebalancerTest is Test {
 
         uint256 snapshotId = vm.snapshot();
         vm.expectEmit(false, true, true, true, address(rebalancer));
-        emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, address(strategy));
-        bytes32 key1 = rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
+        emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, 0x0, address(strategy));
+        bytes32 key1 = rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
         IPoolStorage.Pool memory pool = rebalancer.getPool(key1);
         assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
         assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
@@ -91,8 +91,8 @@ contract RebalancerTest is Test {
 
         vm.revertTo(snapshotId);
         vm.expectEmit(false, true, true, true, address(rebalancer));
-        emit IRebalancer.Open(bytes32(0), bookIdB, bookIdA, address(strategy));
-        bytes32 key2 = rebalancer.open(unopenedKeyB, unopenedKeyA, address(strategy));
+        emit IRebalancer.Open(bytes32(0), bookIdB, bookIdA, 0x0, address(strategy));
+        bytes32 key2 = rebalancer.open(unopenedKeyB, unopenedKeyA, 0x0, address(strategy));
         pool = rebalancer.getPool(key1);
         assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdB), "POOL_A");
         assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdA), "POOL_B");
@@ -117,24 +117,30 @@ contract RebalancerTest is Test {
     function testOpenShouldCheckCurrencyPair() public {
         unopenedKeyA.quote = Currency.wrap(address(0x123));
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidBookPair.selector));
-        rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
     }
 
     function testOpenShouldCheckHooks() public {
         unopenedKeyA.hooks = IHooks(address(0x123));
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidHook.selector));
-        rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
 
         unopenedKeyA.hooks = IHooks(address(0));
         unopenedKeyB.hooks = IHooks(address(0x123));
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidHook.selector));
-        rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
     }
 
     function testOpenAccess() public {
         vm.expectRevert();
         vm.prank(address(0x123));
-        rebalancer.open(unopenedKeyA, unopenedKeyB, address(strategy));
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
+    }
+
+    function testOpenTwice() public {
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.AlreadyOpened.selector));
+        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
     }
 
     function testMintInitiallyWithZeroAmount() public {
