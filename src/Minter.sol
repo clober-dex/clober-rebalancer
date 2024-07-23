@@ -2,26 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import "./libraries/PermitParams.sol";
-import "./Rebalancer.sol";
+import "./interfaces/IMinter.sol";
 
-contract Minter {
+contract Minter is IMinter {
     using CurrencyLibrary for Currency;
     using PermitParamsLibrary for *;
     using SafeERC20 for IERC20;
 
-    error RouterSwapFailed(bytes message);
-    error InsufficientLpAmount();
-
     IBookManager public immutable bookManager;
     Rebalancer public immutable rebalancer;
     address public immutable router;
-
-    struct SwapParams {
-        Currency inCurrency;
-        uint256 amount;
-        bytes data;
-    }
 
     constructor(address _bookManager, address payable _rebalancer, address _router) {
         bookManager = IBookManager(_bookManager);

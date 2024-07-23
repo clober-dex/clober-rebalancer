@@ -105,7 +105,7 @@ contract MinterTest is Test {
     }
 
     function testMintWithoutSwapParams() public {
-        Minter.SwapParams memory swapParams;
+        IMinter.SwapParams memory swapParams;
 
         uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
         minter.mint(key, 1e18, 1e18, 0, emptyParams, emptyParams, swapParams);
@@ -114,13 +114,13 @@ contract MinterTest is Test {
     }
 
     function testMintCheckMinLpAmount() public {
-        Minter.SwapParams memory swapParams;
-        vm.expectRevert(abi.encodeWithSelector(Minter.InsufficientLpAmount.selector));
+        IMinter.SwapParams memory swapParams;
+        vm.expectRevert(abi.encodeWithSelector(IMinter.InsufficientLpAmount.selector));
         minter.mint(key, 1e18, 1e18, 1e19, emptyParams, emptyParams, swapParams);
     }
 
     function testMintWithSwap() public {
-        Minter.SwapParams memory swapParams = Minter.SwapParams({
+        IMinter.SwapParams memory swapParams = IMinter.SwapParams({
             inCurrency: Currency.wrap(address(tokenA)),
             amount: 1e18,
             data: abi.encodeWithSelector(mockSwap.swap.selector, address(tokenA), 1e18, address(tokenB), 1e18)
