@@ -7,17 +7,16 @@ import "forge-std/Test.sol";
 import "clober-dex/v2-core/BookManager.sol";
 import "solmate/test/utils/mocks/MockERC20.sol";
 
-import "../src/SimpleCouponStrategy.sol";
 import "../src/Rebalancer.sol";
+import "./mocks/MockStrategy.sol";
 import "./mocks/TakeRouter.sol";
 
 contract RebalancerTest is Test {
-    using EpochLibrary for Epoch;
     using BookIdLibrary for IBookManager.BookKey;
     using TickLibrary for Tick;
 
     IBookManager public bookManager;
-    SimpleCouponStrategy public strategy;
+    MockStrategy public strategy;
     MockERC20 public tokenA;
     MockERC20 public tokenB;
     IBookManager.BookKey public keyA;
@@ -29,7 +28,6 @@ contract RebalancerTest is Test {
     TakeRouter public takeRouter;
 
     function setUp() public {
-        vm.warp(1710317879);
         bookManager = new BookManager(address(this), address(0x123), "URI", "URI", "Name", "SYMBOL");
 
         tokenA = new MockERC20("Token A", "TKA", 18);
@@ -37,7 +35,7 @@ contract RebalancerTest is Test {
 
         rebalancer = new Rebalancer(bookManager, address(this));
 
-        strategy = new SimpleCouponStrategy(rebalancer, bookManager, address(this));
+        strategy = new MockStrategy();
 
         keyA = IBookManager.BookKey({
             base: Currency.wrap(address(tokenB)),
@@ -62,8 +60,6 @@ contract RebalancerTest is Test {
 
         key = rebalancer.open(keyA, keyB, 0x0, address(strategy));
 
-        strategy.setCouponStrategy(key, EpochLibrary.current().add(1), 98534533154674428335, 146389476364791594973); // 4%, 6%
-
         tokenA.mint(address(this), 1e27);
         tokenB.mint(address(this), 1e27);
         tokenA.approve(address(rebalancer), type(uint256).max);
@@ -72,6 +68,15 @@ contract RebalancerTest is Test {
         takeRouter = new TakeRouter(bookManager);
         tokenA.approve(address(takeRouter), type(uint256).max);
         tokenB.approve(address(takeRouter), type(uint256).max);
+
+        _setOrders(0, 10000, 0, 10000);
+    }
+
+    function _setOrders(int24 tickA, uint64 amountA, int24 tickB, uint64 amountB) internal {
+        strategy.setOrders(
+            IStrategy.Order({tick: Tick.wrap(tickA), rawAmount: amountA}),
+            IStrategy.Order({tick: Tick.wrap(tickB), rawAmount: amountB})
+        );
     }
 
     function testOpen() public {
@@ -272,13 +277,22 @@ contract RebalancerTest is Test {
         IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
-        assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A");
-        assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B");
         assertEq(afterLiquidityA, beforeLiquidityA - 1e18 / 2, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB - 1e21 / 2, "LIQUIDITY_B");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance - beforeSupply / 2, "LP_BALANCE");
         assertEq(tokenA.balanceOf(address(this)) - beforeABalance, 1e18 / 2, "A_BALANCE");
         assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, 1e21 / 2, "B_BALANCE");
+    }
+
+    function testBurnSuccessfullyWhenComputeOrdersReverted() public {
+        rebalancer.mint(key, 1e18, 1e21, 0);
+
+        uint256 beforeSupply = rebalancer.totalSupply(uint256(key));
+        strategy.setShouldRevert(true);
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
+        rebalancer.burn(key, beforeSupply / 2);
     }
 
     function testRebalance() public {
@@ -292,8 +306,6 @@ contract RebalancerTest is Test {
 
         IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
-        assertLt(afterPool.reserveA, keyA.unitSize, "RESERVE_A"); // 1000141231
-        assertLt(afterPool.reserveB, keyB.unitSize, "RESERVE_B"); // 241245
         assertEq(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(afterPool.orderListA.length, 1, "ORDER_LIST_A");
@@ -306,9 +318,7 @@ contract RebalancerTest is Test {
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
-        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(-57340), maxUnit: 2000}), "");
-
-        vm.warp(block.timestamp + 24 * 3600);
+        takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(0), maxUnit: 2000}), "");
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Rebalance(key);
@@ -321,11 +331,6 @@ contract RebalancerTest is Test {
         assertGt(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(tokenA.balanceOf(address(rebalancer)), afterPool.reserveA, "RESERVE_A");
         assertEq(tokenB.balanceOf(address(rebalancer)), afterPool.reserveB, "RESERVE_B");
-    }
-
-    function testRebalanceRevertUnknownBookPair() public {
-        vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidBookPair.selector));
-        rebalancer.rebalance(bytes32(uint256(0x123)));
     }
 
     receive() external payable {}

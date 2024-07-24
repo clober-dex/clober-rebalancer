@@ -19,6 +19,7 @@ import {ERC6909Supply} from "../libraries/ERC6909Supply.sol";
 interface IRebalancer {
     error NotSelf();
     error InvalidHook();
+    error InvalidStrategy();
     error InvalidBookPair();
     error AlreadyOpened();
     error InvalidLockAcquiredSender();

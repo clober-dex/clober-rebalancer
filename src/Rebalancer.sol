@@ -212,6 +212,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     ) public selfOnly returns (bytes32 key) {
         if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
         if (address(bookKeyA.hooks) != address(0) || address(bookKeyB.hooks) != address(0)) revert InvalidHook();
+        if (strategy == address(0)) revert InvalidStrategy();
 
         BookId bookIdA = bookKeyA.toId();
         BookId bookIdB = bookKeyB.toId();
@@ -236,7 +237,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         returns (uint256 withdrawalA, uint256 withdrawalB)
     {
         Pool storage pool = _pools[key];
-        if (pool.strategy == IStrategy(address(0))) revert InvalidBookPair();
 
         uint256 amountA = pool.reserveA;
         uint256 amountB = pool.reserveB;
@@ -263,10 +263,15 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
 
         // Compute allocation
-        (IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB) =
-            pool.strategy.computeOrders(key, amountA, amountB);
+        IStrategy.Order[] memory liquidityA;
+        IStrategy.Order[] memory liquidityB;
+        try pool.strategy.computeOrders(key, amountA, amountB) returns (
+            IStrategy.Order[] memory a, IStrategy.Order[] memory b
+        ) {
+            liquidityA = a;
+            liquidityB = b;
+        } catch {}
 
-        // @dev pool.orderListA.length == 0 && pool.orderListB.length == 0
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
         _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
