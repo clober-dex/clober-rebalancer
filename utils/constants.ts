@@ -1,6 +1,10 @@
 import { arbitrum, arbitrumSepolia, base, berachainTestnet } from 'viem/chains'
 import { Address } from 'viem'
 
+export const MINTER_ROUTER: { [chainId: number]: Address } = {
+  [arbitrumSepolia.id]: '0x05CdebC6D5c70804b28BFf6E99096B565b858ccb',
+}
+
 export const BOOK_MANAGER: { [chainId: number]: Address } = {
   [arbitrumSepolia.id]: '0xC528b9ED5d56d1D0d3C18A2342954CE1069138a4',
   [base.id]: '0x382CCccbD3b142D7DA063bF68cd0c89634767F76',
