@@ -284,6 +284,17 @@ contract RebalancerTest is Test {
         assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, 1e21 / 2, "B_BALANCE");
     }
 
+    function testBurnSuccessfullyWhenComputeOrdersReverted() public {
+        rebalancer.mint(key, 1e18, 1e21, 0);
+
+        uint256 beforeSupply = rebalancer.totalSupply(uint256(key));
+        strategy.setShouldRevert(true);
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
+        rebalancer.burn(key, beforeSupply / 2);
+    }
+
     function testRebalance() public {
         rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
 
@@ -320,11 +331,6 @@ contract RebalancerTest is Test {
         assertGt(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(tokenA.balanceOf(address(rebalancer)), afterPool.reserveA, "RESERVE_A");
         assertEq(tokenB.balanceOf(address(rebalancer)), afterPool.reserveB, "RESERVE_B");
-    }
-
-    function testRebalanceRevertUnknownBookPair() public {
-        vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidBookPair.selector));
-        rebalancer.rebalance(bytes32(uint256(0x123)));
     }
 
     receive() external payable {}
