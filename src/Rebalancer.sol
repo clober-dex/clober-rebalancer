@@ -272,7 +272,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             liquidityB = b;
         } catch {}
 
-        // @dev pool.orderListA.length == 0 && pool.orderListB.length == 0
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
         _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
