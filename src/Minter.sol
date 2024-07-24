@@ -74,8 +74,7 @@ contract Minter is IMinter {
         uint256 baseBalance = base.balanceOfSelf();
         _approve(quote, address(rebalancer), quoteBalance);
         _approve(base, address(rebalancer), baseBalance);
-        lpAmount =
-            rebalancer.mint{value: address(this).balance}(key, quote.balanceOfSelf(), base.balanceOfSelf(), minLpAmount);
+        lpAmount = rebalancer.mint{value: address(this).balance}(key, quoteBalance, baseBalance, minLpAmount);
         _approve(quote, address(rebalancer), 0);
         _approve(base, address(rebalancer), 0);
     }
