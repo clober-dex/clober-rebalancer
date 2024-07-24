@@ -46,8 +46,7 @@ contract Minter is IMinter {
             _swap(swapParams);
         }
 
-        uint256 lpAmount = _mint(key, bookKey.quote, bookKey.base);
-        if (lpAmount < minLpAmount) revert InsufficientLpAmount();
+        uint256 lpAmount = _mint(key, bookKey.quote, bookKey.base, minLpAmount);
 
         rebalancer.transfer(msg.sender, uint256(key), lpAmount);
 
@@ -67,12 +66,16 @@ contract Minter is IMinter {
         _approve(swapParams.inCurrency, router, 0);
     }
 
-    function _mint(bytes32 key, Currency quote, Currency base) internal returns (uint256 lpAmount) {
+    function _mint(bytes32 key, Currency quote, Currency base, uint256 minLpAmount)
+        internal
+        returns (uint256 lpAmount)
+    {
         uint256 quoteBalance = quote.balanceOfSelf();
         uint256 baseBalance = base.balanceOfSelf();
         _approve(quote, address(rebalancer), quoteBalance);
         _approve(base, address(rebalancer), baseBalance);
-        lpAmount = rebalancer.mint{value: address(this).balance}(key, quote.balanceOfSelf(), base.balanceOfSelf());
+        lpAmount =
+            rebalancer.mint{value: address(this).balance}(key, quote.balanceOfSelf(), base.balanceOfSelf(), minLpAmount);
         _approve(quote, address(rebalancer), 0);
         _approve(base, address(rebalancer), 0);
     }

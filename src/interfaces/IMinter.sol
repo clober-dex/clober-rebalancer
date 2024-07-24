@@ -7,7 +7,6 @@ import "../Rebalancer.sol";
 
 interface IMinter {
     error RouterSwapFailed(bytes message);
-    error InsufficientLpAmount();
 
     struct SwapParams {
         Currency inCurrency;
