@@ -2,14 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
+import {Tick} from "clober-dex/v2-core/libraries/Tick.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
-import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
-import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
-import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
 
 import {IStrategy} from "./IStrategy.sol";
 import {IPoolStorage} from "./IPoolStorage.sol";

@@ -274,7 +274,6 @@ contract RebalancerTest is Test {
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
         rebalancer.burn(key, beforeSupply / 2);
 
-        IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
         assertEq(afterLiquidityA, beforeLiquidityA - 1e18 / 2, "LIQUIDITY_A");
