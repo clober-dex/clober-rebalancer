@@ -12,7 +12,7 @@ import "./mocks/TakeRouter.sol";
 import "../src/SimpleOracleStrategy.sol";
 import "./mocks/OpenRouter.sol";
 import "./mocks/MockOracle.sol";
-import "./mocks/MockSwap.sol";
+import "../src/mocks/MockSwap.sol";
 
 contract MinterTest is Test {
     IBookManager public bookManager;
