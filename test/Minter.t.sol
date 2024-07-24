@@ -96,7 +96,7 @@ contract MinterTest is Test {
         tokenA.approve(address(rebalancer), type(uint256).max);
         tokenB.approve(address(rebalancer), type(uint256).max);
 
-        rebalancer.mint(key, 1e18, 1e18);
+        rebalancer.mint(key, 1e18, 1e18, 0);
     }
 
     function _setReferencePrices(uint256 priceA, uint256 priceB) internal {
@@ -111,12 +111,6 @@ contract MinterTest is Test {
         minter.mint(key, 1e18, 1e18, 0, emptyParams, emptyParams, swapParams);
 
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance + 1e18);
-    }
-
-    function testMintCheckMinLpAmount() public {
-        IMinter.SwapParams memory swapParams;
-        vm.expectRevert(abi.encodeWithSelector(IMinter.InsufficientLpAmount.selector));
-        minter.mint(key, 1e18, 1e18, 1e19, emptyParams, emptyParams, swapParams);
     }
 
     function testMintWithSwap() public {

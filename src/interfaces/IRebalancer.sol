@@ -27,6 +27,7 @@ interface IRebalancer {
     error InvalidMaker();
     error InvalidAmount();
     error InvalidValue();
+    error InsufficientLpAmount();
 
     event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, bytes32 salt, address strategy);
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
@@ -42,7 +43,10 @@ interface IRebalancer {
         address strategy
     ) external returns (bytes32 key);
 
-    function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256);
+    function mint(bytes32 key, uint256 amountA, uint256 amountB, uint256 minLpAmount)
+        external
+        payable
+        returns (uint256);
 
     function burn(bytes32 key, uint256 amount) external returns (uint256, uint256);
 

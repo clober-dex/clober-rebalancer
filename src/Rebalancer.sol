@@ -98,7 +98,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         );
     }
 
-    function mint(bytes32 key, uint256 amountA, uint256 amountB) external payable returns (uint256 mintAmount) {
+    function mint(bytes32 key, uint256 amountA, uint256 amountB, uint256 minLpAmount)
+        external
+        payable
+        returns (uint256 mintAmount)
+    {
         Pool storage pool = _pools[key];
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
 
@@ -135,6 +139,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
                 }
             }
         }
+        if (mintAmount < minLpAmount) revert InsufficientLpAmount();
 
         uint256 refund = msg.value;
         if (bookKeyA.quote.isNative()) {

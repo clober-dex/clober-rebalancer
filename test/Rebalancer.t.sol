@@ -147,10 +147,10 @@ contract RebalancerTest is Test {
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "INITIAL_SUPPLY");
 
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidAmount.selector));
-        rebalancer.mint(key, 12341234, 0);
+        rebalancer.mint(key, 12341234, 0, 0);
 
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.InvalidAmount.selector));
-        rebalancer.mint(key, 0, 12341234);
+        rebalancer.mint(key, 0, 12341234, 0);
     }
 
     function testMintInitially() public {
@@ -160,7 +160,7 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 1e18, 1e18 + 1, 1e18 + 1);
-        rebalancer.mint(key, 1e18, 1e18 + 1);
+        rebalancer.mint(key, 1e18, 1e18 + 1, 0);
         assertEq(rebalancer.totalSupply(uint256(key)), 1e18 + 1, "AFTER_SUPPLY_2");
         assertEq(rebalancer.getPool(key).reserveA, 1e18, "RESERVE_A_2");
         assertEq(rebalancer.getPool(key).reserveB, 1e18 + 1, "RESERVE_B_2");
@@ -173,7 +173,7 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 1e18 + 1, 1e18, 1e18 + 1);
-        rebalancer.mint(key, 1e18 + 1, 1e18);
+        rebalancer.mint(key, 1e18 + 1, 1e18, 0);
         assertEq(rebalancer.totalSupply(uint256(key)), 1e18 + 1, "AFTER_SUPPLY_2");
         assertEq(rebalancer.getPool(key).reserveA, 1e18 + 1, "RESERVE_A_2");
         assertEq(rebalancer.getPool(key).reserveB, 1e18, "RESERVE_B_2");
@@ -184,7 +184,7 @@ contract RebalancerTest is Test {
     }
 
     function testMint() public {
-        rebalancer.mint(key, 1e18, 1e18);
+        rebalancer.mint(key, 1e18, 1e18, 0);
         assertEq(rebalancer.totalSupply(uint256(key)), 1e18, "BEFORE_SUPPLY");
 
         IPoolStorage.Pool memory beforePool = rebalancer.getPool(key);
@@ -196,7 +196,7 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 1e18 / 2, 1e18 / 2, 1e18 / 2);
-        rebalancer.mint(key, 1e18, 1e18 / 2);
+        rebalancer.mint(key, 1e18, 1e18 / 2, 0);
         afterPool = rebalancer.getPool(key);
         (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply + 1e18 / 2, "AFTER_SUPPLY_0");
@@ -213,7 +213,7 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 0, 0, 0);
-        rebalancer.mint(key, 1e18, 0);
+        rebalancer.mint(key, 1e18, 0, 0);
         afterPool = rebalancer.getPool(key);
         (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply, "AFTER_SUPPLY_1");
@@ -230,7 +230,7 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 0, 0, 0);
-        rebalancer.mint(key, 0, 1e18);
+        rebalancer.mint(key, 0, 1e18, 0);
         afterPool = rebalancer.getPool(key);
         (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply, "AFTER_SUPPLY_2");
@@ -241,18 +241,23 @@ contract RebalancerTest is Test {
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance, "LP_BALANCE_2");
     }
 
+    function testMintShouldCheckMinLpAmount() public {
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.InsufficientLpAmount.selector));
+        rebalancer.mint(key, 1e18, 1e18, 1e18 + 1);
+    }
+
     function testMintCheckRefund() public {
         vm.deal(address(this), 1 ether);
         vm.deal(address(rebalancer), 1 ether);
 
         uint256 beforeThisBalance = address(this).balance;
-        rebalancer.mint{value: 0.5 ether}(key, 1e18, 1e18);
+        rebalancer.mint{value: 0.5 ether}(key, 1e18, 1e18, 0);
 
         assertEq(address(this).balance, beforeThisBalance);
     }
 
     function testBurn() public {
-        rebalancer.mint(key, 1e18, 1e21);
+        rebalancer.mint(key, 1e18, 1e21, 0);
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
         uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
@@ -277,7 +282,7 @@ contract RebalancerTest is Test {
     }
 
     function testRebalance() public {
-        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245);
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
@@ -296,7 +301,7 @@ contract RebalancerTest is Test {
     }
 
     function testRebalanceAfterSomeOrdersHaveTaken() public {
-        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245);
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
         rebalancer.rebalance(key);
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
