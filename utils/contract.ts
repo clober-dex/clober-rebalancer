@@ -3,6 +3,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 
 import { getHRE, liveLog } from './misc'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
+import { ProxyOptions } from 'hardhat-deploy/types'
 
 export const getDeployedAddress = async (name: string): Promise<Address> => {
   const hre = getHRE()
@@ -36,7 +37,7 @@ export const deployWithVerify = async (
   args: any[],
   options?: {
     libraries?: any
-    proxy?: boolean
+    proxy?: boolean | string | ProxyOptions
     contract?: string
   },
 ) => {
