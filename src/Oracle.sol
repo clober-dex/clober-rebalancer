@@ -83,8 +83,12 @@ contract Oracle is IOracle, Ownable2Step {
 
         for (uint256 i = 0; i < assets.length; ++i) {
             if (feeds[i].length == 0) revert LengthMismatch();
+            address[] storage _f = _feeds[assets[i]];
+            assembly {
+                sstore(_f.slot, 0)
+            }
             for (uint256 j = 0; j < feeds[i].length; ++j) {
-                _feeds[assets[i]].push(feeds[i][j]);
+                _f.push(feeds[i][j]);
             }
             emit SetFeed(assets[i], feeds[i]);
         }
