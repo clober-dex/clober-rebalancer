@@ -362,6 +362,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         return keccak256(abi.encodePacked(bookIdA, bookIdB, salt));
     }
 
+    // TODO: This function only exists in the test contract
     function setStrategy(bytes32 key, address strategy) external onlyOwner {
         _pools[key].strategy = IStrategy(strategy);
     }
