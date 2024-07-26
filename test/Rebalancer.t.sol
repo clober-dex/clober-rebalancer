@@ -247,7 +247,7 @@ contract RebalancerTest is Test {
     }
 
     function testMintShouldCheckMinLpAmount() public {
-        vm.expectRevert(abi.encodeWithSelector(IRebalancer.InsufficientLpAmount.selector));
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.Slippage.selector));
         rebalancer.mint(key, 1e18, 1e18, 1e18 + 1);
     }
 
@@ -272,7 +272,7 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
-        rebalancer.burn(key, beforeSupply / 2);
+        rebalancer.burn(key, beforeSupply / 2, 0, 0);
 
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
@@ -291,7 +291,17 @@ contract RebalancerTest is Test {
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
-        rebalancer.burn(key, beforeSupply / 2);
+        rebalancer.burn(key, beforeSupply / 2, 0, 0);
+    }
+
+    function testBurnShouldCheckMinAmount() public {
+        rebalancer.mint(key, 1e18, 1e21, 0);
+
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.Slippage.selector));
+        rebalancer.burn(key, 1e18, 1e21, 0);
+
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.Slippage.selector));
+        rebalancer.burn(key, 1e18, 1e21, 1e18 + 1);
     }
 
     function testRebalance() public {

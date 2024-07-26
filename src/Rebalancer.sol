@@ -153,7 +153,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
                 }
             }
         }
-        if (mintAmount < minLpAmount) revert InsufficientLpAmount();
+        if (mintAmount < minLpAmount) revert Slippage();
 
         uint256 refund = msg.value;
         if (bookKeyA.quote.isNative()) {
@@ -191,17 +191,31 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
     }
 
-    function burn(bytes32 key, uint256 amount) external returns (uint256, uint256) {
+    struct BurnParams {
+        address user;
+        uint256 burnAmount;
+        uint256 minAmountA;
+        uint256 minAmountB;
+    }
+
+    function burn(bytes32 key, uint256 amount, uint256 minAmountA, uint256 minAmountB)
+        external
+        returns (uint256, uint256)
+    {
         return abi.decode(
             bookManager.lock(
-                address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, msg.sender, amount)
+                address(this),
+                abi.encodeWithSelector(
+                    this._burnAndRebalance.selector, key, BurnParams(msg.sender, amount, minAmountA, minAmountB)
+                )
             ),
             (uint256, uint256)
         );
     }
 
     function rebalance(bytes32 key) public {
-        bookManager.lock(address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, address(0), 0));
+        BurnParams memory emptyBurnParams;
+        bookManager.lock(address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, emptyBurnParams));
     }
 
     function lockAcquired(address lockCaller, bytes calldata data) external returns (bytes memory) {
@@ -245,7 +259,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         emit Open(key, bookIdA, bookIdB, salt, strategy);
     }
 
-    function _burnAndRebalance(bytes32 key, address user, uint256 burnAmount)
+    function _burnAndRebalance(bytes32 key, BurnParams calldata burnParams)
         public
         selfOnly
         returns (uint256 withdrawalA, uint256 withdrawalB)
@@ -266,14 +280,16 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
 
-        if (burnAmount > 0) {
+        if (burnParams.burnAmount > 0) {
             uint256 supply = totalSupply[uint256(key)];
-            _burn(user, uint256(key), burnAmount);
-            withdrawalA = FixedPointMathLib.mulDivDown(amountA, burnAmount, supply);
-            withdrawalB = FixedPointMathLib.mulDivDown(amountB, burnAmount, supply);
+            _burn(burnParams.user, uint256(key), burnParams.burnAmount);
+            withdrawalA = FixedPointMathLib.mulDivDown(amountA, burnParams.burnAmount, supply);
+            withdrawalB = FixedPointMathLib.mulDivDown(amountB, burnParams.burnAmount, supply);
+            if (withdrawalA < burnParams.minAmountA || withdrawalB < burnParams.minAmountB) revert Slippage();
+
             amountA -= withdrawalA;
             amountB -= withdrawalB;
-            emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
+            emit Burn(burnParams.user, key, withdrawalA, withdrawalB, burnParams.burnAmount);
         }
 
         // Compute allocation
@@ -293,10 +309,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB) - withdrawalB;
 
         if (withdrawalA > 0) {
-            bookKeyA.quote.transfer(user, withdrawalA);
+            bookKeyA.quote.transfer(burnParams.user, withdrawalA);
         }
         if (withdrawalB > 0) {
-            bookKeyA.base.transfer(user, withdrawalB);
+            bookKeyA.base.transfer(burnParams.user, withdrawalB);
         }
 
         emit Rebalance(key);
