@@ -22,7 +22,9 @@ interface IRebalancer {
     event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, bytes32 salt, address strategy);
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
-    event Rebalance(bytes32 indexed key);
+    event Rebalance(bytes32 indexed key, uint64 alpha);
+
+    function alpha() external view returns (uint64);
 
     function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
 
@@ -42,5 +44,5 @@ interface IRebalancer {
         external
         returns (uint256, uint256);
 
-    function rebalance(bytes32 key) external;
+    function rebalance(bytes32 key, uint64 alpha) external;
 }

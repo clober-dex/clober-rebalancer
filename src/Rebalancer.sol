@@ -27,10 +27,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
 
+    uint64 private constant _PRECISION_ALPHA = 1000000;
+
     IBookManager public immutable bookManager;
 
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) public bookPair;
+
+    uint64 public alpha;
 
     modifier selfOnly() {
         if (msg.sender != address(this)) revert NotSelf();
@@ -213,7 +217,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         );
     }
 
-    function rebalance(bytes32 key) public {
+    function rebalance(bytes32 key, uint64 alpha_) public {
+        if (alpha_ > _PRECISION_ALPHA) revert InvalidValue();
+        alpha = alpha_;
+
         BurnParams memory emptyBurnParams;
         bookManager.lock(address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, emptyBurnParams));
     }
@@ -302,8 +309,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             liquidityB = b;
         } catch {}
 
-        _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
-        _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
+        uint64 alpha_ = alpha;
+        _setLiquidity(bookKeyA, liquidityA, pool.orderListA, alpha_);
+        _setLiquidity(bookKeyB, liquidityB, pool.orderListB, alpha_);
 
         pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA) - withdrawalA;
         pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB) - withdrawalB;
@@ -315,7 +323,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             bookKeyA.base.transfer(burnParams.user, withdrawalB);
         }
 
-        emit Rebalance(key);
+        emit Rebalance(key, alpha_);
     }
 
     function _clearOrders(OrderId[] storage orderIds)
@@ -341,18 +349,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     function _setLiquidity(
         IBookManager.BookKey memory bookKey,
         IStrategy.Order[] memory liquidity,
-        OrderId[] storage emptyOrderIds
+        OrderId[] storage emptyOrderIds,
+        uint64 alpha_
     ) internal {
         for (uint256 i = 0; i < liquidity.length; ++i) {
-            if (liquidity[i].rawAmount == 0) continue;
+            uint64 amount = liquidity[i].rawAmount * alpha_ / _PRECISION_ALPHA;
+            if (amount == 0) continue;
             (OrderId orderId,) = bookManager.make(
-                IBookManager.MakeParams({
-                    key: bookKey,
-                    tick: liquidity[i].tick,
-                    unit: liquidity[i].rawAmount,
-                    provider: address(0)
-                }),
-                ""
+                IBookManager.MakeParams({key: bookKey, tick: liquidity[i].tick, unit: amount, provider: address(0)}), ""
             );
             emptyOrderIds.push(orderId);
         }

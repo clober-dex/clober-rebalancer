@@ -310,8 +310,8 @@ contract RebalancerTest is Test {
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
         vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Rebalance(key);
-        rebalancer.rebalance(key);
+        emit IRebalancer.Rebalance(key, 1000000);
+        rebalancer.rebalance(key, 1000000);
 
         IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
@@ -323,15 +323,15 @@ contract RebalancerTest is Test {
 
     function testRebalanceAfterSomeOrdersHaveTaken() public {
         rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
-        rebalancer.rebalance(key);
+        rebalancer.rebalance(key, 1000000);
 
         (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
 
         takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(0), maxUnit: 2000}), "");
 
         vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Rebalance(key);
-        rebalancer.rebalance(key);
+        emit IRebalancer.Rebalance(key, 1000000);
+        rebalancer.rebalance(key, 1000000);
 
         IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
