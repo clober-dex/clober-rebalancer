@@ -24,7 +24,16 @@ interface IRebalancer {
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
 
-    function getLiquidity(bytes32 key) external view returns (uint256 liquidityA, uint256 liquidityB);
+    struct Liquidity {
+        uint256 reserve;
+        uint256 claimable;
+        uint256 cancelable;
+    }
+
+    function getLiquidity(bytes32 key)
+        external
+        view
+        returns (Liquidity memory liquidityA, Liquidity memory liquidityB);
 
     function open(
         IBookManager.BookKey calldata bookKeyA,
