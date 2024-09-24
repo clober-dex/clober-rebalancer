@@ -12,12 +12,13 @@ import {IOracle} from "./IOracle.sol";
 interface ISimpleOracleStrategy is IStrategy {
     error InvalidPrice();
     error InvalidConfig();
+    error InvalidValue();
     error ExceedsThreshold();
     error NotOperator();
 
     event SetOperator(address indexed operator, bool status);
     event UpdateConfig(bytes32 indexed key, Config config);
-    event UpdatePrice(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB);
+    event UpdatePrice(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 alpha);
 
     struct Config {
         uint24 referenceThreshold;
@@ -47,9 +48,11 @@ interface ISimpleOracleStrategy is IStrategy {
 
     function getPrice(bytes32 key) external view returns (Price memory);
 
+    function getAlpha() external view returns (uint256);
+
     function isOraclePriceValid(bytes32 key) external view returns (bool);
 
-    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external;
+    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 alpha) external;
 
     function setConfig(bytes32 key, Config memory config) external;
 
