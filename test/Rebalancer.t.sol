@@ -114,9 +114,10 @@ contract RebalancerTest is Test {
         assertEq(pool.orderListA.length, 0, "ORDER_LIST_A");
         assertEq(pool.orderListB.length, 0, "ORDER_LIST_B");
 
-        (uint256 liquidityA, uint256 liquidityB) = rebalancer.getLiquidity(key1);
-        assertEq(liquidityA, 0, "LIQUIDITY_A");
-        assertEq(liquidityB, 0, "LIQUIDITY_B");
+        (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB) =
+            rebalancer.getLiquidity(key1);
+        assertEq(liquidityA.reserve + liquidityA.cancelable + liquidityA.claimable, 0, "LIQUIDITY_A");
+        assertEq(liquidityB.reserve + liquidityB.cancelable + liquidityB.claimable, 0, "LIQUIDITY_B");
     }
 
     function testOpenShouldCheckCurrencyPair() public {
@@ -169,9 +170,10 @@ contract RebalancerTest is Test {
         assertEq(rebalancer.totalSupply(uint256(key)), 1e18 + 1, "AFTER_SUPPLY_2");
         assertEq(rebalancer.getPool(key).reserveA, 1e18, "RESERVE_A_2");
         assertEq(rebalancer.getPool(key).reserveB, 1e18 + 1, "RESERVE_B_2");
-        (uint256 liquidityA, uint256 liquidityB) = rebalancer.getLiquidity(key);
-        assertEq(liquidityA, 1e18, "LIQUIDITY_A_2");
-        assertEq(liquidityB, 1e18 + 1, "LIQUIDITY_B_2");
+        (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB) =
+            rebalancer.getLiquidity(key);
+        assertEq(liquidityA.reserve + liquidityA.cancelable + liquidityA.claimable, 1e18, "LIQUIDITY_A_2");
+        assertEq(liquidityB.reserve + liquidityB.cancelable + liquidityB.claimable, 1e18 + 1, "LIQUIDITY_B_2");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 1e18 + 1, "LP_BALANCE_2");
 
         vm.revertTo(snapshotId);
@@ -183,8 +185,8 @@ contract RebalancerTest is Test {
         assertEq(rebalancer.getPool(key).reserveA, 1e18 + 1, "RESERVE_A_2");
         assertEq(rebalancer.getPool(key).reserveB, 1e18, "RESERVE_B_2");
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
-        assertEq(liquidityA, 1e18 + 1, "LIQUIDITY_A_2");
-        assertEq(liquidityB, 1e18, "LIQUIDITY_B_2");
+        assertEq(liquidityA.reserve + liquidityA.cancelable + liquidityA.claimable, 1e18 + 1, "LIQUIDITY_A_2");
+        assertEq(liquidityB.reserve + liquidityB.cancelable + liquidityB.claimable, 1e18, "LIQUIDITY_B_2");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 1e18 + 1, "LP_BALANCE_2");
     }
 
@@ -192,9 +194,14 @@ contract RebalancerTest is Test {
         rebalancer.mint(key, 1e18, 1e18, 0);
         assertEq(rebalancer.totalSupply(uint256(key)), 1e18, "BEFORE_SUPPLY");
 
+        IRebalancer.Liquidity memory liquidityA;
+        IRebalancer.Liquidity memory liquidityB;
+
         IPoolStorage.Pool memory beforePool = rebalancer.getPool(key);
         IPoolStorage.Pool memory afterPool = beforePool;
-        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 beforeLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 beforeLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         (uint256 afterLiquidityA, uint256 afterLiquidityB) = (beforeLiquidityA, beforeLiquidityB);
         uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
         uint256 beforeSupply = rebalancer.totalSupply(uint256(key));
@@ -203,7 +210,9 @@ contract RebalancerTest is Test {
         emit IRebalancer.Mint(address(this), key, 1e18 / 2, 1e18 / 2, 1e18 / 2);
         rebalancer.mint(key, 1e18, 1e18 / 2, 0);
         afterPool = rebalancer.getPool(key);
-        (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply + 1e18 / 2, "AFTER_SUPPLY_0");
         assertEq(afterPool.reserveA, beforePool.reserveA + 1e18 / 2, "RESERVE_A_0");
         assertEq(afterPool.reserveB, beforePool.reserveB + 1e18 / 2, "RESERVE_B_0");
@@ -220,7 +229,9 @@ contract RebalancerTest is Test {
         emit IRebalancer.Mint(address(this), key, 0, 0, 0);
         rebalancer.mint(key, 1e18, 0, 0);
         afterPool = rebalancer.getPool(key);
-        (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply, "AFTER_SUPPLY_1");
         assertEq(afterPool.reserveA, beforePool.reserveA, "RESERVE_A_1");
         assertEq(afterPool.reserveB, beforePool.reserveB, "RESERVE_B_1");
@@ -237,7 +248,9 @@ contract RebalancerTest is Test {
         emit IRebalancer.Mint(address(this), key, 0, 0, 0);
         rebalancer.mint(key, 0, 1e18, 0);
         afterPool = rebalancer.getPool(key);
-        (afterLiquidityA, afterLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply, "AFTER_SUPPLY_2");
         assertEq(afterPool.reserveA, beforePool.reserveA, "RESERVE_A_2");
         assertEq(afterPool.reserveB, beforePool.reserveB, "RESERVE_B_2");
@@ -264,7 +277,12 @@ contract RebalancerTest is Test {
     function testBurn() public {
         rebalancer.mint(key, 1e18, 1e21, 0);
 
-        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+        IRebalancer.Liquidity memory liquidityA;
+        IRebalancer.Liquidity memory liquidityB;
+
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 beforeLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 beforeLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         uint256 beforeLpBalance = rebalancer.balanceOf(address(this), uint256(key));
         uint256 beforeSupply = rebalancer.totalSupply(uint256(key));
         uint256 beforeABalance = tokenA.balanceOf(address(this));
@@ -274,7 +292,9 @@ contract RebalancerTest is Test {
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
         rebalancer.burn(key, beforeSupply / 2, 0, 0);
 
-        (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         assertEq(rebalancer.totalSupply(uint256(key)), beforeSupply - beforeSupply / 2, "AFTER_SUPPLY");
         assertEq(afterLiquidityA, beforeLiquidityA - 1e18 / 2, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB - 1e21 / 2, "LIQUIDITY_B");
@@ -307,14 +327,21 @@ contract RebalancerTest is Test {
     function testRebalance() public {
         rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
 
-        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+        IRebalancer.Liquidity memory liquidityA;
+        IRebalancer.Liquidity memory liquidityB;
+
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 beforeLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 beforeLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Rebalance(key);
         rebalancer.rebalance(key);
 
         IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
-        (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
         assertEq(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(afterPool.orderListA.length, 1, "ORDER_LIST_A");
@@ -325,7 +352,12 @@ contract RebalancerTest is Test {
         rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
         rebalancer.rebalance(key);
 
-        (uint256 beforeLiquidityA, uint256 beforeLiquidityB) = rebalancer.getLiquidity(key);
+        IRebalancer.Liquidity memory liquidityA;
+        IRebalancer.Liquidity memory liquidityB;
+
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 beforeLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 beforeLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
 
         takeRouter.take(IBookManager.TakeParams({key: keyA, tick: Tick.wrap(0), maxUnit: 2000}), "");
 
@@ -334,7 +366,9 @@ contract RebalancerTest is Test {
         rebalancer.rebalance(key);
 
         IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
-        (uint256 afterLiquidityA, uint256 afterLiquidityB) = rebalancer.getLiquidity(key);
+        (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
+        uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+        uint256 afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
 
         assertLt(afterLiquidityA, beforeLiquidityA, "LIQUIDITY_A");
         assertGt(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");

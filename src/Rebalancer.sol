@@ -53,10 +53,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         return (_pools[key].bookIdA, _pools[key].bookIdB);
     }
 
-    function getLiquidity(bytes32 key) public view returns (uint256 liquidityA, uint256 liquidityB) {
+    function getLiquidity(bytes32 key) public view returns (Liquidity memory liquidityA, Liquidity memory liquidityB) {
         Pool storage pool = _pools[key];
-        liquidityA = pool.reserveA;
-        liquidityB = pool.reserveB;
+        liquidityA.reserve = pool.reserveA;
+        liquidityB.reserve = pool.reserveB;
 
         OrderId[] memory orderListA = pool.orderListA;
         OrderId[] memory orderListB = pool.orderListB;
@@ -66,8 +66,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             for (uint256 i; i < orderListA.length; ++i) {
                 (uint256 cancelable, uint256 claimable) =
                     _getLiquidity(bookKeyA.makerPolicy, bookKeyA.unitSize, orderListA[i]);
-                liquidityA += cancelable;
-                liquidityB += claimable;
+                liquidityA.cancelable += cancelable;
+                liquidityB.claimable += claimable;
             }
         }
         if (orderListB.length > 0) {
@@ -75,8 +75,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             for (uint256 i; i < orderListB.length; ++i) {
                 (uint256 cancelable, uint256 claimable) =
                     _getLiquidity(bookKeyB.makerPolicy, bookKeyB.unitSize, orderListB[i]);
-                liquidityA += claimable;
-                liquidityB += cancelable;
+                liquidityA.claimable += claimable;
+                liquidityB.cancelable += cancelable;
             }
         }
     }
@@ -132,24 +132,27 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
             uint256 _amountB = amountB * complementB;
             mintAmount = _amountA > _amountB ? _amountA : _amountB;
         } else {
-            (uint256 liquidityA, uint256 liquidityB) = getLiquidity(key);
-            if (liquidityA == 0 && liquidityB == 0) {
+            (Liquidity memory liquidityA, Liquidity memory liquidityB) = getLiquidity(key);
+            uint256 totalLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
+            uint256 totalLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
+
+            if (totalLiquidityA == 0 && totalLiquidityB == 0) {
                 mintAmount = amountA = amountB = 0;
-            } else if (liquidityA == 0) {
-                mintAmount = FixedPointMathLib.mulDivDown(amountB, supply, liquidityB);
+            } else if (totalLiquidityA == 0) {
+                mintAmount = FixedPointMathLib.mulDivDown(amountB, supply, totalLiquidityB);
                 amountA = 0;
-            } else if (liquidityB == 0) {
-                mintAmount = FixedPointMathLib.mulDivDown(amountA, supply, liquidityA);
+            } else if (totalLiquidityB == 0) {
+                mintAmount = FixedPointMathLib.mulDivDown(amountA, supply, totalLiquidityA);
                 amountB = 0;
             } else {
-                uint256 mintA = FixedPointMathLib.mulDivDown(amountA, supply, liquidityA);
-                uint256 mintB = FixedPointMathLib.mulDivDown(amountB, supply, liquidityB);
+                uint256 mintA = FixedPointMathLib.mulDivDown(amountA, supply, totalLiquidityA);
+                uint256 mintB = FixedPointMathLib.mulDivDown(amountB, supply, totalLiquidityB);
                 if (mintA > mintB) {
                     mintAmount = mintB;
-                    amountA = FixedPointMathLib.mulDivUp(liquidityA, mintAmount, supply);
+                    amountA = FixedPointMathLib.mulDivUp(totalLiquidityA, mintAmount, supply);
                 } else {
                     mintAmount = mintA;
-                    amountB = FixedPointMathLib.mulDivUp(liquidityB, mintAmount, supply);
+                    amountB = FixedPointMathLib.mulDivUp(totalLiquidityB, mintAmount, supply);
                 }
             }
         }
