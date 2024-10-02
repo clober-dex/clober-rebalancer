@@ -31,6 +31,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     mapping(bytes32 => Config) internal _configs;
     mapping(bytes32 => Price) internal _prices;
 
+    uint256 internal _alpha;
+
     modifier onlyOperator() {
         if (!isOperator[msg.sender]) revert NotOperator();
         _;
@@ -50,6 +52,10 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
     function getPrice(bytes32 key) external view returns (Price memory) {
         return _prices[key];
+    }
+
+    function getAlpha() external view returns (uint256) {
+        return _alpha;
     }
 
     function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
@@ -88,8 +94,14 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
         if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
 
-        ordersA[0] = Order({tick: price.tickA, rawAmount: SafeCast.toUint64(amountA / bookKeyA.unitSize)});
-        ordersB[0] = Order({tick: price.tickB, rawAmount: SafeCast.toUint64(amountB / bookKeyB.unitSize)});
+        ordersA[0] = Order({
+            tick: price.tickA,
+            rawAmount: SafeCast.toUint64(amountA * _alpha / bookKeyA.unitSize / RATE_PRECISION)
+        });
+        ordersB[0] = Order({
+            tick: price.tickB,
+            rawAmount: SafeCast.toUint64(amountB * _alpha / bookKeyB.unitSize / RATE_PRECISION)
+        });
     }
 
     function _calculateAmounts(
@@ -175,11 +187,16 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return true;
     }
 
-    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB) external onlyOperator {
+    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 alpha)
+        external
+        onlyOperator
+    {
         uint256 priceA = tickA.toPrice();
         uint256 priceB = Tick.wrap(-Tick.unwrap(tickB)).toPrice();
 
         if (priceA >= priceB) revert InvalidPrice();
+        if (alpha > RATE_PRECISION) revert InvalidValue();
+        if (alpha > 0) _alpha = alpha;
 
         Config memory config = _configs[key];
         if (
@@ -200,7 +217,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
 
         _prices[key] = Price({oraclePrice: SafeCast.toUint208(oraclePrice), tickA: tickA, tickB: tickB});
-        emit UpdatePrice(key, oraclePrice, tickA, tickB);
+        emit UpdatePrice(key, oraclePrice, tickA, tickB, alpha > 0 ? alpha : _alpha);
     }
 
     function setConfig(bytes32 key, Config memory config) external onlyOwner {
