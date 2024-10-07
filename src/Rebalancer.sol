@@ -318,11 +318,11 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     function _clearPool(bytes32 key) internal returns (uint256 amountA, uint256 amountB) {
         Pool storage pool = _pools[key];
 
-        (uint256 canceledAmountA, uint256 claimedAmountA) = _clearOrders(pool.orderListA);
+        (uint256 canceledAmountA, uint256 claimedAmountB) = _clearOrders(pool.orderListA);
         amountA += canceledAmountA;
-        amountB += claimedAmountA;
-        (uint256 canceledAmountB, uint256 claimedAmountB) = _clearOrders(pool.orderListB);
-        amountA += claimedAmountB;
+        amountB += claimedAmountB;
+        (uint256 canceledAmountB, uint256 claimedAmountA) = _clearOrders(pool.orderListB);
+        amountA += claimedAmountA;
         amountB += canceledAmountB;
         emit Clear(key, canceledAmountA, canceledAmountB, claimedAmountA, claimedAmountB);
     }
