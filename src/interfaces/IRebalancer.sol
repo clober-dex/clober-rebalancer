@@ -23,6 +23,13 @@ interface IRebalancer {
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
+    event Clear(
+        bytes32 indexed key,
+        uint256 canceledAmountA,
+        uint256 canceledAmountB,
+        uint256 claimedAmountA,
+        uint256 claimedAmountB
+    );
 
     struct Liquidity {
         uint256 reserve;

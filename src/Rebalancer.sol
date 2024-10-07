@@ -269,16 +269,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     {
         Pool storage pool = _pools[key];
 
-        uint256 amountA = pool.reserveA;
-        uint256 amountB = pool.reserveB;
-
         // Remove all orders
-        (uint256 canceledAmount, uint256 claimedAmount) = _clearOrders(pool.orderListA);
-        amountA += canceledAmount;
-        amountB += claimedAmount;
-        (canceledAmount, claimedAmount) = _clearOrders(pool.orderListB);
-        amountA += claimedAmount;
-        amountB += canceledAmount;
+        (uint256 amountA, uint256 amountB) = _clearPool(key);
+        amountA += pool.reserveA;
+        amountB += pool.reserveB;
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
@@ -319,6 +313,18 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         }
 
         emit Rebalance(key);
+    }
+
+    function _clearPool(bytes32 key) internal returns (uint256 amountA, uint256 amountB) {
+        Pool storage pool = _pools[key];
+
+        (uint256 canceledAmountA, uint256 claimedAmountB) = _clearOrders(pool.orderListA);
+        amountA += canceledAmountA;
+        amountB += claimedAmountB;
+        (uint256 canceledAmountB, uint256 claimedAmountA) = _clearOrders(pool.orderListB);
+        amountA += claimedAmountA;
+        amountB += canceledAmountB;
+        emit Clear(key, canceledAmountA, canceledAmountB, claimedAmountA, claimedAmountB);
     }
 
     function _clearOrders(OrderId[] storage orderIds)
