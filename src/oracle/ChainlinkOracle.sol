@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {AggregatorV3Interface} from "../external/chainlink/AggregatorV3Interface.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
 import {IChainlinkOracle} from "../interfaces/IChainlinkOracle.sol";
-import {IFallbackOracle} from "../interfaces/IFallbackOracle.sol";
 
 contract ChainlinkOracle is IChainlinkOracle, Ownable2Step {
     uint256 private constant _MAX_TIMEOUT = 1 days;
@@ -39,7 +39,7 @@ contract ChainlinkOracle is IChainlinkOracle, Ownable2Step {
     function getAssetPrice(address asset) public view returns (uint256) {
         address[] memory feeds = _feeds[asset];
         if (feeds.length == 0) {
-            return IFallbackOracle(fallbackOracle).getAssetPrice(asset);
+            return IOracle(fallbackOracle).getAssetPrice(asset);
         }
         uint256 price = 10 ** 8;
         for (uint256 i = 0; i < feeds.length; ++i) {
@@ -55,7 +55,7 @@ contract ChainlinkOracle is IChainlinkOracle, Ownable2Step {
                     continue;
                 }
             } catch {}
-            return IFallbackOracle(fallbackOracle).getAssetPrice(asset);
+            return IOracle(fallbackOracle).getAssetPrice(asset);
         }
         return price;
     }
