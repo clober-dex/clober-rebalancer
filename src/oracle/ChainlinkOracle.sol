@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-import {AggregatorV3Interface} from "./external/chainlink/AggregatorV3Interface.sol";
-import {IOracle} from "./interfaces/IOracle.sol";
-import {IFallbackOracle} from "./interfaces/IFallbackOracle.sol";
+import {AggregatorV3Interface} from "../external/chainlink/AggregatorV3Interface.sol";
+import {IChainlinkOracle} from "../interfaces/IChainlinkOracle.sol";
+import {IFallbackOracle} from "../interfaces/IFallbackOracle.sol";
 
-contract Oracle is IOracle, Ownable2Step {
+contract ChainlinkOracle is IChainlinkOracle, Ownable2Step {
     uint256 private constant _MAX_TIMEOUT = 1 days;
     uint256 private constant _MIN_TIMEOUT = 20 minutes;
     uint256 private constant _MAX_GRACE_PERIOD = 1 days;

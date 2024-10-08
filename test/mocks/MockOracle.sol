@@ -5,10 +5,6 @@ pragma solidity ^0.8.20;
 import {IOracle} from "../../src/interfaces/IOracle.sol";
 
 contract MockOracle is IOracle {
-    uint256 public override timeout;
-    uint256 public override gracePeriod;
-    address public override sequencerOracle;
-
     mapping(address => uint256) private _priceMap;
 
     bool public isValid = true;
@@ -30,31 +26,9 @@ contract MockOracle is IOracle {
         }
     }
 
-    function isSequencerValid() external pure returns (bool) {
-        return true;
-    }
-
     function setAssetPrice(address asset, uint256 price) external {
         _priceMap[asset] = price;
     }
-
-    function fallbackOracle() external pure returns (address) {
-        return address(0);
-    }
-
-    function getFeeds(address) external pure returns (address[] memory) {
-        return new address[](0);
-    }
-
-    function setFallbackOracle(address) external {}
-
-    function setFeeds(address[] calldata, address[][] calldata) external {}
-
-    function setSequencerOracle(address) external {}
-
-    function setTimeout(uint256) external {}
-
-    function setGracePeriod(uint256) external {}
 
     function setValidity(bool _isValid) external {
         isValid = _isValid;
