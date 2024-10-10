@@ -159,6 +159,19 @@ contract RebalancerTest is Test {
         rebalancer.mint(key, 0, 12341234, 0);
     }
 
+    function testPause() public {
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Pause(key, true);
+        rebalancer.pause(key);
+
+        vm.expectRevert(abi.encodeWithSelector(IRebalancer.Paused.selector));
+        rebalancer.rebalance(key);
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Pause(key, false);
+        rebalancer.resume(key);
+    }
+
     function testMintInitially() public {
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "INITIAL_SUPPLY");
 

@@ -18,11 +18,13 @@ interface IRebalancer {
     error InvalidAmount();
     error InvalidValue();
     error Slippage();
+    error Paused();
 
     event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, bytes32 salt, address strategy);
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
+    event Pause(bytes32 indexed key, bool paused);
     event Clear(
         bytes32 indexed key,
         uint256 canceledAmountA,
@@ -59,4 +61,8 @@ interface IRebalancer {
         returns (uint256, uint256);
 
     function rebalance(bytes32 key) external;
+
+    function pause(bytes32 key) external;
+
+    function resume(bytes32 key) external;
 }
