@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
@@ -22,10 +23,13 @@ import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolStorage {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
     using CurrencyLibrary for Currency;
     using OrderIdLibrary for OrderId;
     using TickLibrary for Tick;
     using FeePolicyLibrary for FeePolicy;
+
+    uint256 public constant RATE_PRECISION = 1e6;
 
     IBookManager public immutable bookManager;
 
@@ -120,9 +124,18 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     function pause(bytes32 key) external onlyOwner {
         Pool storage pool = _pools[key];
 
-        (uint256 amountA, uint256 amountB) = _clearPool(key);
-        pool.reserveA += amountA;
-        pool.reserveB += amountB;
+        uint256 claimedAmountA;
+        uint256 claimedAmountB;
+        uint256 canceledAmountA;
+        uint256 canceledAmountB;
+
+        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, 1, 1);
+        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, 1, 1);
+        emit Claim(key, claimedAmountA, claimedAmountB);
+        emit Cancel(key, canceledAmountA, canceledAmountB);
+
+        pool.reserveA += canceledAmountA + claimedAmountA;
+        pool.reserveB += canceledAmountB + claimedAmountB;
         pool.paused = true;
 
         emit Pause(key, true);
@@ -225,22 +238,17 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
 
     function burn(bytes32 key, uint256 amount, uint256 minAmountA, uint256 minAmountB)
         external
-        returns (uint256, uint256)
+        returns (uint256 withdrawalA, uint256 withdrawalB)
     {
-        return abi.decode(
-            bookManager.lock(
-                address(this),
-                abi.encodeWithSelector(
-                    this._burnAndRebalance.selector, key, BurnParams(msg.sender, amount, minAmountA, minAmountB)
-                )
-            ),
+        (withdrawalA, withdrawalB) = abi.decode(
+            bookManager.lock(address(this), abi.encodeWithSelector(this._burn.selector, key, msg.sender, amount)),
             (uint256, uint256)
         );
+        if (withdrawalA < minAmountA || withdrawalB < minAmountB) revert Slippage();
     }
 
     function rebalance(bytes32 key) public notPaused(key) {
-        BurnParams memory emptyBurnParams;
-        bookManager.lock(address(this), abi.encodeWithSelector(this._burnAndRebalance.selector, key, emptyBurnParams));
+        bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, key));
     }
 
     function lockAcquired(address lockCaller, bytes calldata data) external returns (bytes memory) {
@@ -284,39 +292,70 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         emit Open(key, bookIdA, bookIdB, salt, strategy);
     }
 
-    function _burnAndRebalance(bytes32 key, BurnParams calldata burnParams)
+    function _burn(bytes32 key, address user, uint256 burnAmount)
         public
         selfOnly
         returns (uint256 withdrawalA, uint256 withdrawalB)
     {
         Pool storage pool = _pools[key];
+        uint256 supply = totalSupply[uint256(key)];
 
-        // Remove all orders
-        (uint256 amountA, uint256 amountB) = _clearPool(key);
-        amountA += pool.reserveA;
-        amountB += pool.reserveB;
+        uint256 claimedAmountA;
+        uint256 claimedAmountB;
+        uint256 canceledAmountA;
+        uint256 canceledAmountB;
+
+        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, burnAmount, supply);
+        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, burnAmount, supply);
+        emit Claim(key, claimedAmountA, claimedAmountB);
+        emit Cancel(key, canceledAmountA, canceledAmountB);
+
+        uint256 reserveA = pool.reserveA;
+        uint256 reserveB = pool.reserveB;
+
+        withdrawalA = (reserveA + claimedAmountA) * burnAmount / supply + canceledAmountA;
+        withdrawalB = (reserveB + claimedAmountB) * burnAmount / supply + canceledAmountB;
+
+        _burn(user, uint256(key), burnAmount);
+        emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
+
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
+        if (withdrawalA > 0) {
+            bookKeyA.quote.transfer(user, withdrawalA);
+        }
+        if (withdrawalB > 0) {
+            bookKeyA.base.transfer(user, withdrawalB);
+        }
+
+        pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA) - withdrawalA;
+        pool.reserveB = _settleCurrency(bookKeyA.base, reserveB) - withdrawalB;
+    }
+
+    function _rebalance(bytes32 key) public selfOnly {
+        Pool storage pool = _pools[key];
+
+        uint256 claimedAmountA;
+        uint256 claimedAmountB;
+        uint256 canceledAmountA;
+        uint256 canceledAmountB;
+
+        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, 1, 1);
+        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, 1, 1);
+        emit Claim(key, claimedAmountA, claimedAmountB);
+        emit Cancel(key, canceledAmountA, canceledAmountB);
+
+        uint256 reserveA = pool.reserveA;
+        uint256 reserveB = pool.reserveB;
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
 
-        if (burnParams.burnAmount > 0) {
-            uint256 supply = totalSupply[uint256(key)];
-            _burn(burnParams.user, uint256(key), burnParams.burnAmount);
-            withdrawalA = FixedPointMathLib.mulDivDown(amountA, burnParams.burnAmount, supply);
-            withdrawalB = FixedPointMathLib.mulDivDown(amountB, burnParams.burnAmount, supply);
-            if (withdrawalA < burnParams.minAmountA || withdrawalB < burnParams.minAmountB) revert Slippage();
-
-            amountA -= withdrawalA;
-            amountB -= withdrawalB;
-            emit Burn(burnParams.user, key, withdrawalA, withdrawalB, burnParams.burnAmount);
-        }
-
         // Compute allocation
         IStrategy.Order[] memory liquidityA;
         IStrategy.Order[] memory liquidityB;
-        try pool.strategy.computeOrders(key, amountA, amountB) returns (
-            IStrategy.Order[] memory a, IStrategy.Order[] memory b
-        ) {
+        try pool.strategy.computeOrders(
+            key, reserveA + claimedAmountA + canceledAmountA, reserveB + claimedAmountB + canceledAmountB
+        ) returns (IStrategy.Order[] memory a, IStrategy.Order[] memory b) {
             liquidityA = a;
             liquidityB = b;
         } catch {}
@@ -324,32 +363,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
         _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
-        pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA) - withdrawalA;
-        pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB) - withdrawalB;
-
-        if (withdrawalA > 0) {
-            bookKeyA.quote.transfer(burnParams.user, withdrawalA);
-        }
-        if (withdrawalB > 0) {
-            bookKeyA.base.transfer(burnParams.user, withdrawalB);
-        }
+        pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
+        pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
 
         emit Rebalance(key);
     }
 
-    function _clearPool(bytes32 key) internal returns (uint256 amountA, uint256 amountB) {
-        Pool storage pool = _pools[key];
-
-        (uint256 canceledAmountA, uint256 claimedAmountB) = _clearOrders(pool.orderListA);
-        amountA += canceledAmountA;
-        amountB += claimedAmountB;
-        (uint256 canceledAmountB, uint256 claimedAmountA) = _clearOrders(pool.orderListB);
-        amountA += claimedAmountA;
-        amountB += canceledAmountB;
-        emit Clear(key, canceledAmountA, canceledAmountB, claimedAmountA, claimedAmountB);
-    }
-
-    function _clearOrders(OrderId[] storage orderIds)
+    function _clearOrders(OrderId[] storage orderIds, uint256 cancelAmount, uint256 supply)
         internal
         returns (uint256 canceledAmount, uint256 claimedAmount)
     {
@@ -361,11 +381,19 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
                 claimedAmount += bookManager.claim(orderId, "");
             }
             if (orderInfo.open > 0) {
-                canceledAmount += bookManager.cancel(IBookManager.CancelParams({id: orderId, toUnit: 0}), "");
+                canceledAmount += bookManager.cancel(
+                    IBookManager.CancelParams({
+                        id: orderId,
+                        toUnit: (orderInfo.open - orderInfo.open * cancelAmount / supply).toUint64()
+                    }),
+                    ""
+                );
             }
         }
-        assembly {
-            sstore(orderIds.slot, 0)
+        if (supply == cancelAmount) {
+            assembly {
+                sstore(orderIds.slot, 0)
+            }
         }
     }
 
