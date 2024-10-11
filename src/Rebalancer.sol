@@ -369,7 +369,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         emit Rebalance(key);
     }
 
-    function _clearOrders(OrderId[] storage orderIds, uint256 cancelAmount, uint256 supply)
+    function _clearOrders(OrderId[] storage orderIds, uint256 cancelNumerator, uint256 cancelDenominator)
         internal
         returns (uint256 canceledAmount, uint256 claimedAmount)
     {
@@ -384,13 +384,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
                 canceledAmount += bookManager.cancel(
                     IBookManager.CancelParams({
                         id: orderId,
-                        toUnit: (orderInfo.open - orderInfo.open * cancelAmount / supply).toUint64()
+                        toUnit: (orderInfo.open - orderInfo.open * cancelNumerator / cancelDenominator).toUint64()
                     }),
                     ""
                 );
             }
         }
-        if (supply == cancelAmount) {
+        if (cancelDenominator == cancelNumerator) {
             assembly {
                 sstore(orderIds.slot, 0)
             }
