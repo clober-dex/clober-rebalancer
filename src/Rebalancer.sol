@@ -124,15 +124,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     function pause(bytes32 key) external onlyOwner {
         Pool storage pool = _pools[key];
 
-        uint256 claimedAmountA;
-        uint256 claimedAmountB;
-        uint256 canceledAmountA;
-        uint256 canceledAmountB;
-
-        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, 1, 1);
-        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, 1, 1);
-        emit Claim(key, claimedAmountA, claimedAmountB);
-        emit Cancel(key, canceledAmountA, canceledAmountB);
+        (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB) =
+            _clearPool(key, pool, 1, 1);
 
         pool.reserveA += canceledAmountA + claimedAmountA;
         pool.reserveB += canceledAmountB + claimedAmountB;
@@ -300,15 +293,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         Pool storage pool = _pools[key];
         uint256 supply = totalSupply[uint256(key)];
 
-        uint256 claimedAmountA;
-        uint256 claimedAmountB;
-        uint256 canceledAmountA;
-        uint256 canceledAmountB;
-
-        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, burnAmount, supply);
-        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, burnAmount, supply);
-        emit Claim(key, claimedAmountA, claimedAmountB);
-        emit Cancel(key, canceledAmountA, canceledAmountB);
+        (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB) =
+            _clearPool(key, pool, burnAmount, supply);
 
         uint256 reserveA = pool.reserveA;
         uint256 reserveB = pool.reserveB;
@@ -334,15 +320,8 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
     function _rebalance(bytes32 key) public selfOnly {
         Pool storage pool = _pools[key];
 
-        uint256 claimedAmountA;
-        uint256 claimedAmountB;
-        uint256 canceledAmountA;
-        uint256 canceledAmountB;
-
-        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, 1, 1);
-        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, 1, 1);
-        emit Claim(key, claimedAmountA, claimedAmountB);
-        emit Cancel(key, canceledAmountA, canceledAmountB);
+        (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB) =
+            _clearPool(key, pool, 1, 1);
 
         uint256 reserveA = pool.reserveA;
         uint256 reserveB = pool.reserveB;
@@ -367,6 +346,16 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
 
         emit Rebalance(key);
+    }
+
+    function _clearPool(bytes32 key, Pool storage pool, uint256 cancelNumerator, uint256 cancelDenominator)
+        internal
+        returns (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB)
+    {
+        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, cancelNumerator, cancelDenominator);
+        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, cancelNumerator, cancelDenominator);
+        emit Claim(key, claimedAmountA, claimedAmountB);
+        emit Cancel(key, canceledAmountA, canceledAmountB);
     }
 
     function _clearOrders(OrderId[] storage orderIds, uint256 cancelNumerator, uint256 cancelDenominator)
