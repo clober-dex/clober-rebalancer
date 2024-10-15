@@ -4,8 +4,23 @@ pragma solidity ^0.8.0;
 
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
+import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
+import {OrderId} from "clober-dex/v2-core/libraries/OrderId.sol";
+
+import {IStrategy} from "./IStrategy.sol";
 
 interface IRebalancer {
+    struct Pool {
+        BookId bookIdA;
+        BookId bookIdB;
+        IStrategy strategy;
+        bool paused;
+        uint256 reserveA;
+        uint256 reserveB;
+        OrderId[] orderListA;
+        OrderId[] orderListB;
+    }
+
     error NotSelf();
     error InvalidHook();
     error InvalidStrategy();
@@ -34,6 +49,12 @@ interface IRebalancer {
         uint256 cancelable;
     }
 
+    function bookPair(BookId bookId) external view returns (BookId);
+
+    function getPool(bytes32 key) external view returns (Pool memory);
+
+    function getBookPairs(bytes32 key) external view returns (BookId bookIdA, BookId bookIdB);
+
     function getLiquidity(bytes32 key)
         external
         view
@@ -60,4 +81,6 @@ interface IRebalancer {
     function pause(bytes32 key) external;
 
     function resume(bytes32 key) external;
+
+    function setStrategy(bytes32 key, address strategy) external;
 }

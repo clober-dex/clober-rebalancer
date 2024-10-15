@@ -15,4 +15,10 @@ interface IStrategy {
         external
         view
         returns (Order[] memory ordersA, Order[] memory ordersB);
+
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external;
+
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external;
+
+    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external;
 }

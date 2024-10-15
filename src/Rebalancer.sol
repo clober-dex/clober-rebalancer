@@ -16,11 +16,10 @@ import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolic
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
-import {IPoolStorage} from "./interfaces/IPoolStorage.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolStorage {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -214,7 +213,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         pool.reserveB += amountB;
 
         _mint(msg.sender, uint256(key), mintAmount);
-
+        pool.strategy.mintHook(msg.sender, key, mintAmount, "");
         emit Mint(msg.sender, key, amountA, amountB, mintAmount);
 
         if (refund > 0) {
@@ -303,6 +302,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         withdrawalB = (reserveB + claimedAmountB) * burnAmount / supply + canceledAmountB;
 
         _burn(user, uint256(key), burnAmount);
+        pool.strategy.burnHook(msg.sender, key, burnAmount, "");
         emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
@@ -345,6 +345,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
         pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
 
+        pool.strategy.rebalanceHook(msg.sender, key, "");
         emit Rebalance(key);
     }
 

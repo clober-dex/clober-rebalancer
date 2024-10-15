@@ -8,6 +8,7 @@ import "clober-dex/v2-core/BookManager.sol";
 import "solmate/test/utils/mocks/MockERC20.sol";
 
 import "../src/SimpleCouponStrategy.sol";
+import "../src/interfaces/IRebalancer.sol";
 import "./mocks/OpenRouter.sol";
 
 contract SimpleCouponStrategyTest is Test {
@@ -51,7 +52,7 @@ contract SimpleCouponStrategyTest is Test {
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
 
-        strategy = new SimpleCouponStrategy(IPoolStorage(address(this)), bookManager, address(this));
+        strategy = new SimpleCouponStrategy(IRebalancer(address(this)), bookManager, address(this));
 
         key = bytes32(uint256(123123));
 

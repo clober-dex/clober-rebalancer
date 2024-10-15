@@ -6,8 +6,8 @@ import {Tick} from "clober-dex/v2-core/libraries/Tick.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 
 import {IStrategy} from "./IStrategy.sol";
-import {IPoolStorage} from "./IPoolStorage.sol";
 import {IOracle} from "./IOracle.sol";
+import "./IRebalancer.sol";
 
 interface ISimpleOracleStrategy is IStrategy {
     error InvalidPrice();
@@ -37,8 +37,6 @@ interface ISimpleOracleStrategy is IStrategy {
     }
 
     function referenceOracle() external view returns (IOracle);
-
-    function poolStorage() external view returns (IPoolStorage);
 
     function bookManager() external view returns (IBookManager);
 

@@ -87,7 +87,7 @@ contract RebalancerTest is Test {
         vm.expectEmit(false, true, true, true, address(rebalancer));
         emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, 0x0, address(strategy));
         bytes32 key1 = rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
-        IPoolStorage.Pool memory pool = rebalancer.getPool(key1);
+        IRebalancer.Pool memory pool = rebalancer.getPool(key1);
         assertEq(BookId.unwrap(pool.bookIdA), BookId.unwrap(bookIdA), "POOL_A");
         assertEq(BookId.unwrap(pool.bookIdB), BookId.unwrap(bookIdB), "POOL_B");
         (BookId idA, BookId idB) = rebalancer.getBookPairs(key1);
@@ -210,8 +210,8 @@ contract RebalancerTest is Test {
         IRebalancer.Liquidity memory liquidityA;
         IRebalancer.Liquidity memory liquidityB;
 
-        IPoolStorage.Pool memory beforePool = rebalancer.getPool(key);
-        IPoolStorage.Pool memory afterPool = beforePool;
+        IRebalancer.Pool memory beforePool = rebalancer.getPool(key);
+        IRebalancer.Pool memory afterPool = beforePool;
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
         uint256 beforeLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
         uint256 beforeLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
@@ -353,7 +353,7 @@ contract RebalancerTest is Test {
         emit IRebalancer.Rebalance(key);
         rebalancer.rebalance(key);
 
-        IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
         uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
         uint256 afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
@@ -380,7 +380,7 @@ contract RebalancerTest is Test {
         emit IRebalancer.Rebalance(key);
         rebalancer.rebalance(key);
 
-        IPoolStorage.Pool memory afterPool = rebalancer.getPool(key);
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
         uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
         uint256 afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;

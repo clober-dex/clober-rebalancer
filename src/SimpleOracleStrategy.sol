@@ -12,9 +12,9 @@ import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {Currency, CurrencyLibrary} from "clober-dex/v2-core/libraries/Currency.sol";
 
 import {IStrategy} from "./interfaces/IStrategy.sol";
-import {IPoolStorage} from "./interfaces/IPoolStorage.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
 import {ISimpleOracleStrategy} from "./interfaces/ISimpleOracleStrategy.sol";
+import {IRebalancer} from "./interfaces/IRebalancer.sol";
 
 contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     using CurrencyLibrary for Currency;
@@ -24,7 +24,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     uint256 public constant RATE_PRECISION = 1e6;
 
     IOracle public immutable referenceOracle;
-    IPoolStorage public immutable poolStorage;
+    IRebalancer public immutable rebalancer;
     IBookManager public immutable bookManager;
 
     mapping(address => bool) public isOperator;
@@ -38,11 +38,11 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         _;
     }
 
-    constructor(IOracle referenceOracle_, IPoolStorage poolStorage_, IBookManager bookManager_, address initialOwner)
+    constructor(IOracle referenceOracle_, IRebalancer rebalancer_, IBookManager bookManager_, address initialOwner)
         Ownable(initialOwner)
     {
         referenceOracle = referenceOracle_;
-        poolStorage = poolStorage_;
+        rebalancer = rebalancer_;
         bookManager = bookManager_;
     }
 
@@ -69,7 +69,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         IBookManager.BookKey memory bookKeyA;
         IBookManager.BookKey memory bookKeyB;
         {
-            (BookId bookIdA, BookId bookIdB) = poolStorage.getBookPairs(key);
+            (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
             bookKeyA = bookManager.getBookKey(bookIdA);
             bookKeyB = bookManager.getBookKey(bookIdB);
         }
@@ -153,7 +153,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         Config memory config = _configs[key];
         Price memory price = _prices[key];
 
-        (BookId bookIdA,) = poolStorage.getBookPairs(key);
+        (BookId bookIdA,) = rebalancer.getBookPairs(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
 
@@ -206,7 +206,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdB) / RATE_PRECISION > priceB
         ) revert ExceedsThreshold();
 
-        (BookId bookIdA,) = poolStorage.getBookPairs(key);
+        (BookId bookIdA,) = rebalancer.getBookPairs(key);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
         uint8 decimalsA = _getCurrencyDecimals(bookKeyA.quote);
@@ -241,4 +241,10 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     function _getCurrencyDecimals(Currency currency) internal view returns (uint8) {
         return currency.isNative() ? 18 : IERC20Metadata(Currency.unwrap(currency)).decimals();
     }
+
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}
+
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {}
+
+    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {}
 }

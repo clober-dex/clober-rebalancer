@@ -31,4 +31,10 @@ contract MockStrategy is IStrategy {
     function setShouldRevert(bool _shouldRevert) public {
         shouldRevert = _shouldRevert;
     }
+
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}
+
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {}
+
+    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {}
 }
