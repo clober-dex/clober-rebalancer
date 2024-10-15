@@ -25,13 +25,8 @@ interface IRebalancer {
     event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
     event Rebalance(bytes32 indexed key);
     event Pause(bytes32 indexed key, bool paused);
-    event Clear(
-        bytes32 indexed key,
-        uint256 canceledAmountA,
-        uint256 canceledAmountB,
-        uint256 claimedAmountA,
-        uint256 claimedAmountB
-    );
+    event Claim(bytes32 indexed key, uint256 claimedAmountA, uint256 claimedAmountB);
+    event Cancel(bytes32 indexed key, uint256 canceledAmountA, uint256 canceledAmountB);
 
     struct Liquidity {
         uint256 reserve;

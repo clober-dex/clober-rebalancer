@@ -301,6 +301,8 @@ contract RebalancerTest is Test {
         uint256 beforeABalance = tokenA.balanceOf(address(this));
         uint256 beforeBBalance = tokenB.balanceOf(address(this));
 
+        rebalancer.rebalance(key);
+
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
         rebalancer.burn(key, beforeSupply / 2, 0, 0);
