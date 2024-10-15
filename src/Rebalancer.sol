@@ -213,7 +213,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         pool.reserveB += amountB;
 
         _mint(msg.sender, uint256(key), mintAmount);
-        pool.strategy.mintHook(msg.sender, key, mintAmount, "");
+        pool.strategy.mintHook(msg.sender, key, mintAmount, supply);
         emit Mint(msg.sender, key, amountA, amountB, mintAmount);
 
         if (refund > 0) {
@@ -302,7 +302,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         withdrawalB = (reserveB + claimedAmountB) * burnAmount / supply + canceledAmountB;
 
         _burn(user, uint256(key), burnAmount);
-        pool.strategy.burnHook(msg.sender, key, burnAmount, "");
+        pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
         emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
@@ -336,7 +336,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
             _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
             _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
-            pool.strategy.rebalanceHook(msg.sender, key, abi.encode(liquidityA, liquidityB));
+            pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB);
             emit Rebalance(key);
         } catch {}
 

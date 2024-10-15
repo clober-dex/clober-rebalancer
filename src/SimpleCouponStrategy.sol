@@ -84,9 +84,11 @@ contract SimpleCouponStrategy is IStrategy, Ownable2Step {
         return _strategy[key];
     }
 
-    function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external {}
 
-    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {}
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 totalSupply) external {}
 
-    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {}
+    function rebalanceHook(address sender, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB)
+        external
+    {}
 }

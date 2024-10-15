@@ -253,17 +253,20 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return currency.isNative() ? 18 : IERC20Metadata(Currency.unwrap(currency)).decimals();
     }
 
-    function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external {
+        if (msg.sender != address(rebalancer)) revert InvalidAccess();
+    }
 
-    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {
-        (uint256 totalSupply) = abi.decode(hookData, (uint256));
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 totalSupply) external {
+        if (msg.sender != address(rebalancer)) revert InvalidAccess();
         _lastRawAmountsA[key] -= _lastRawAmountsA[key] * burnAmount / totalSupply;
         _lastRawAmountsB[key] -= _lastRawAmountsB[key] * burnAmount / totalSupply;
     }
 
-    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {
-        (IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB) =
-            abi.decode(hookData, (IStrategy.Order[], IStrategy.Order[]));
+    function rebalanceHook(address sender, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB)
+        external
+    {
+        if (msg.sender != address(rebalancer)) revert InvalidAccess();
         uint256 lastRawAmountA;
         uint256 lastRawAmountB;
         for (uint256 i = 0; i < liquidityA.length; ++i) {
