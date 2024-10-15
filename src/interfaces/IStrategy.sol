@@ -11,10 +11,7 @@ interface IStrategy {
         uint64 rawAmount;
     }
 
-    function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
-        external
-        view
-        returns (Order[] memory ordersA, Order[] memory ordersB);
+    function computeOrders(bytes32 key) external view returns (Order[] memory ordersA, Order[] memory ordersB);
 
     function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external;
 

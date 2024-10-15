@@ -9,11 +9,7 @@ contract MockStrategy is IStrategy {
     Order public orderA;
     Order public orderB;
 
-    function computeOrders(bytes32, uint256, uint256)
-        external
-        view
-        returns (Order[] memory ordersA, Order[] memory ordersB)
-    {
+    function computeOrders(bytes32) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
         if (shouldRevert) {
             revert("MockStrategy: Revert");
         }

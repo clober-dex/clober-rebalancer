@@ -60,28 +60,23 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return _alpha;
     }
 
-    function computeOrders(bytes32 key, uint256 amountA, uint256 amountB)
-        external
-        view
-        returns (Order[] memory ordersA, Order[] memory ordersB)
-    {
+    function computeOrders(bytes32 key) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
         Config memory config = _configs[key];
         Price memory price = _prices[key];
+
+        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
+
         (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB) =
             rebalancer.getLiquidity(key);
         if (
-            liquidityA.cancelable > _lastRawAmountsA[key] * config.rebalanceThreshold / RATE_PRECISION
-                || liquidityB.cancelable > _lastRawAmountsB[key] * config.rebalanceThreshold / RATE_PRECISION
+            liquidityA.cancelable
+                > _lastRawAmountsA[key] * bookKeyA.unitSize * config.rebalanceThreshold / RATE_PRECISION
+                || liquidityB.cancelable
+                    > _lastRawAmountsB[key] * bookKeyB.unitSize * config.rebalanceThreshold / RATE_PRECISION
         ) {
             return (ordersA, ordersB);
-        }
-
-        IBookManager.BookKey memory bookKeyA;
-        IBookManager.BookKey memory bookKeyB;
-        {
-            (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
-            bookKeyA = bookManager.getBookKey(bookIdA);
-            bookKeyB = bookManager.getBookKey(bookIdB);
         }
 
         if (!_isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
@@ -92,9 +87,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         ordersA = new Order[](1);
         ordersB = new Order[](1);
 
-        (amountA, amountB) = _calculateAmounts(
-            amountA,
-            amountB,
+        (uint256 amountA, uint256 amountB) = _calculateAmounts(
+            liquidityA.reserve + liquidityA.cancelable + liquidityB.claimable,
+            liquidityB.reserve + liquidityB.cancelable + liquidityA.claimable,
             price.oraclePrice,
             _getCurrencyDecimals(bookKeyA.quote),
             _getCurrencyDecimals(bookKeyA.base),

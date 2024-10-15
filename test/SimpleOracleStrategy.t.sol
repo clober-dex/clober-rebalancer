@@ -24,6 +24,10 @@ contract SimpleOracleStrategyTest is Test {
     MockERC20 public tokenB;
     IBookManager.BookKey public keyA;
     IBookManager.BookKey public keyB;
+    uint256 public reserveA;
+    uint256 public reserveB;
+    uint256 public cancelableA;
+    uint256 public cancelableB;
     bytes32 public key;
 
     function setUp() public {
@@ -63,7 +67,7 @@ contract SimpleOracleStrategyTest is Test {
             key,
             ISimpleOracleStrategy.Config({
                 referenceThreshold: 40000, // 4%
-                rebalanceThreshold: 1000000, // 100%
+                rebalanceThreshold: 100000, // 10%
                 rateA: 10000, // 1%
                 rateB: 10000, // 1%
                 minRateA: 3000, // 0.3%
@@ -159,8 +163,9 @@ contract SimpleOracleStrategyTest is Test {
         // 1 ETH = 3367 USDT
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
 
-        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) =
-            strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
+        reserveA = 10000 * 1e6;
+        reserveB = 3 * 1e18;
+        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
@@ -168,7 +173,9 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(ordersA[0].rawAmount, 100100100);
         assertEq(ordersB[0].rawAmount, 29663);
 
-        (ordersA, ordersB) = strategy.computeOrders(key, 10000 * 1e6, 1 * 1e18);
+        reserveA = 10000 * 1e6;
+        reserveB = 1 * 1e18;
+        (ordersA, ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
@@ -176,21 +183,29 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(ordersA[0].rawAmount, 33711089);
         assertEq(ordersB[0].rawAmount, 9990);
 
-        (ordersA, ordersB) = strategy.computeOrders(key, 1000 * 1e6, 3 * 1e18);
+        reserveA = 1000 * 1e6;
+        reserveB = 3 * 1e18;
+        (ordersA, ordersB) = strategy.computeOrders(key);
+        cancelableA = 1001001;
+        cancelableB = 899100000000001;
+        strategy.rebalanceHook(address(this), key, ordersA, ordersB);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
         assertEq(Tick.unwrap(ordersB[0].tick), 194905);
         assertEq(ordersA[0].rawAmount, 10010010);
         assertEq(ordersB[0].rawAmount, 8991);
+
+        (ordersA, ordersB) = strategy.computeOrders(key);
+        assertEq(ordersA.length, 0);
+        assertEq(ordersB.length, 0);
     }
 
     function testComputeOrdersWhenOraclePriceIsInvalid() public {
         strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         oracle.setValidity(false);
 
-        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) =
-            strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
+        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 0);
         assertEq(ordersB.length, 0);
     }
@@ -201,14 +216,8 @@ contract SimpleOracleStrategyTest is Test {
         returns (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB)
     {
         return (
-            IRebalancer.Liquidity({reserve: 0, claimable: 0, cancelable: 0}),
-            IRebalancer.Liquidity({reserve: 0, claimable: 0, cancelable: 0})
+            IRebalancer.Liquidity({reserve: reserveA, claimable: 0, cancelable: cancelableA}),
+            IRebalancer.Liquidity({reserve: reserveB, claimable: 0, cancelable: cancelableB})
         );
     }
-
-    function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}
-
-    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {}
-
-    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {}
 }
