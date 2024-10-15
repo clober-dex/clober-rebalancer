@@ -248,7 +248,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return currency.isNative() ? 18 : IERC20Metadata(Currency.unwrap(currency)).decimals();
     }
 
-    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external {
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external view {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
     }
 
