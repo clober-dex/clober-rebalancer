@@ -88,8 +88,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         ordersB = new Order[](1);
 
         (uint256 amountA, uint256 amountB) = _calculateAmounts(
-            liquidityA.reserve + liquidityA.cancelable + liquidityB.claimable,
-            liquidityB.reserve + liquidityB.cancelable + liquidityA.claimable,
+            liquidityA.reserve + liquidityA.cancelable + liquidityA.claimable,
+            liquidityB.reserve + liquidityB.cancelable + liquidityB.claimable,
             price.oraclePrice,
             _getCurrencyDecimals(bookKeyA.quote),
             _getCurrencyDecimals(bookKeyA.base),
