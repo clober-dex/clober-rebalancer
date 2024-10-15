@@ -330,23 +330,18 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
 
         // Compute allocation
-        IStrategy.Order[] memory liquidityA;
-        IStrategy.Order[] memory liquidityB;
         try pool.strategy.computeOrders(
             key, reserveA + claimedAmountA + canceledAmountA, reserveB + claimedAmountB + canceledAmountB
-        ) returns (IStrategy.Order[] memory a, IStrategy.Order[] memory b) {
-            liquidityA = a;
-            liquidityB = b;
-        } catch {}
+        ) returns (IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB) {
+            _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
+            _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
-        _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
-        _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
+            pool.strategy.rebalanceHook(msg.sender, key, abi.encode(liquidityA, liquidityB));
+            emit Rebalance(key);
+        } catch {}
 
         pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
         pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
-
-        pool.strategy.rebalanceHook(msg.sender, key, "");
-        emit Rebalance(key);
     }
 
     function _clearPool(bytes32 key, Pool storage pool, uint256 cancelNumerator, uint256 cancelDenominator)

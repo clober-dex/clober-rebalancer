@@ -22,6 +22,7 @@ interface ISimpleOracleStrategy is IStrategy {
 
     struct Config {
         uint24 referenceThreshold;
+        uint24 rebalanceThreshold;
         uint24 rateA;
         uint24 rateB;
         uint24 minRateA;

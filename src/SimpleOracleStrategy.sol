@@ -30,6 +30,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     mapping(address => bool) public isOperator;
     mapping(bytes32 => Config) internal _configs;
     mapping(bytes32 => Price) internal _prices;
+    mapping(bytes32 => uint256) internal _lastRawAmountsA;
+    mapping(bytes32 => uint256) internal _lastRawAmountsB;
 
     uint256 internal _alpha;
 
@@ -65,6 +67,14 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     {
         Config memory config = _configs[key];
         Price memory price = _prices[key];
+        (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB) =
+            rebalancer.getLiquidity(key);
+        if (
+            liquidityA.cancelable > _lastRawAmountsA[key] * config.rebalanceThreshold / RATE_PRECISION
+                || liquidityB.cancelable > _lastRawAmountsB[key] * config.rebalanceThreshold / RATE_PRECISION
+        ) {
+            return (ordersA, ordersB);
+        }
 
         IBookManager.BookKey memory bookKeyA;
         IBookManager.BookKey memory bookKeyB;
@@ -222,9 +232,10 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
     function setConfig(bytes32 key, Config memory config) external onlyOwner {
         if (
-            config.referenceThreshold > RATE_PRECISION || config.rateA > RATE_PRECISION || config.rateB > RATE_PRECISION
-                || config.minRateA > RATE_PRECISION || config.minRateB > RATE_PRECISION
-                || config.priceThresholdA > RATE_PRECISION || config.priceThresholdB > RATE_PRECISION
+            config.referenceThreshold > RATE_PRECISION || config.rebalanceThreshold > RATE_PRECISION
+                || config.rateA > RATE_PRECISION || config.rateB > RATE_PRECISION || config.minRateA > RATE_PRECISION
+                || config.minRateB > RATE_PRECISION || config.priceThresholdA > RATE_PRECISION
+                || config.priceThresholdB > RATE_PRECISION
         ) revert InvalidConfig();
 
         if (config.rateA < config.minRateA || config.rateB < config.minRateB) revert InvalidConfig();
@@ -244,7 +255,27 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
     function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}
 
-    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {}
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, bytes calldata hookData) external {
+        (uint256 totalSupply) = abi.decode(hookData, (uint256));
+        _lastRawAmountsA[key] -= _lastRawAmountsA[key] * burnAmount / totalSupply;
+        _lastRawAmountsB[key] -= _lastRawAmountsB[key] * burnAmount / totalSupply;
+    }
 
-    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {}
+    function rebalanceHook(address sender, bytes32 key, bytes calldata hookData) external {
+        (IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB) =
+            abi.decode(hookData, (IStrategy.Order[], IStrategy.Order[]));
+        uint256 lastRawAmountA;
+        uint256 lastRawAmountB;
+        for (uint256 i = 0; i < liquidityA.length; ++i) {
+            IStrategy.Order memory order = liquidityA[i];
+            lastRawAmountA += order.rawAmount;
+        }
+
+        for (uint256 i = 0; i < liquidityB.length; ++i) {
+            IStrategy.Order memory order = liquidityB[i];
+            lastRawAmountB += order.rawAmount;
+        }
+        _lastRawAmountsA[key] = lastRawAmountA;
+        _lastRawAmountsB[key] = lastRawAmountB;
+    }
 }

@@ -63,6 +63,7 @@ contract SimpleOracleStrategyTest is Test {
             key,
             ISimpleOracleStrategy.Config({
                 referenceThreshold: 40000, // 4%
+                rebalanceThreshold: 1000000, // 100%
                 rateA: 10000, // 1%
                 rateB: 10000, // 1%
                 minRateA: 3000, // 0.3%
@@ -192,6 +193,17 @@ contract SimpleOracleStrategyTest is Test {
             strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
         assertEq(ordersA.length, 0);
         assertEq(ordersB.length, 0);
+    }
+
+    function getLiquidity(bytes32 key)
+        public
+        view
+        returns (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB)
+    {
+        return (
+            IRebalancer.Liquidity({reserve: 0, claimable: 0, cancelable: 0}),
+            IRebalancer.Liquidity({reserve: 0, claimable: 0, cancelable: 0})
+        );
     }
 
     function mintHook(address sender, bytes32 key, uint256 mintAmount, bytes calldata hookData) external {}

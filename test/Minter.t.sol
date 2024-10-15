@@ -67,6 +67,7 @@ contract MinterTest is Test {
             key,
             ISimpleOracleStrategy.Config({
                 referenceThreshold: 40000, // 4%
+                rebalanceThreshold: 1000000, // 100%
                 rateA: 10000, // 1%
                 rateB: 10000, // 1%
                 minRateA: 3000, // 0.3%
