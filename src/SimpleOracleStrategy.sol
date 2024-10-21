@@ -60,6 +60,10 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return _alpha;
     }
 
+    function getLastAmount(bytes32 key) external view returns (uint256, uint256) {
+        return (_lastRawAmountsA[key], _lastRawAmountsB[key]);
+    }
+
     function computeOrders(bytes32 key) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
         Config memory config = _configs[key];
         Price memory price = _prices[key];

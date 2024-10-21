@@ -50,6 +50,8 @@ interface ISimpleOracleStrategy is IStrategy {
 
     function getAlpha() external view returns (uint256);
 
+    function getLastAmount(bytes32 key) external view returns (uint256, uint256);
+
     function isOraclePriceValid(bytes32 key) external view returns (bool);
 
     function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 alpha) external;
