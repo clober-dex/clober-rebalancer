@@ -22,6 +22,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     using TickLibrary for Tick;
 
     uint256 public constant RATE_PRECISION = 1e6;
+    uint256 public constant LAST_RAW_AMOUNT_MASK = 1 << 128 - 1;
 
     IOracle public immutable referenceOracle;
     IRebalancer public immutable rebalancer;
@@ -30,8 +31,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     mapping(address => bool) public isOperator;
     mapping(bytes32 => Config) internal _configs;
     mapping(bytes32 => Price) internal _prices;
-    mapping(bytes32 => uint256) internal _lastRawAmountsA;
-    mapping(bytes32 => uint256) internal _lastRawAmountsB;
+    mapping(bytes32 => uint256) internal _lastRawAmounts;
 
     uint256 internal _alpha;
 
@@ -60,36 +60,42 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return _alpha;
     }
 
-    function getLastAmount(bytes32 key) external view returns (uint256, uint256) {
-        return (_lastRawAmountsA[key], _lastRawAmountsB[key]);
+    function getLastRawAmount(bytes32 key) external view returns (uint256, uint256) {
+        uint256 lastRawAmounts = _lastRawAmounts[key];
+        return (lastRawAmounts >> 128, lastRawAmounts & LAST_RAW_AMOUNT_MASK);
     }
 
     function computeOrders(bytes32 key) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
         Config memory config = _configs[key];
         Price memory price = _prices[key];
 
-        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
+        IBookManager.BookKey memory bookKeyA;
+        IBookManager.BookKey memory bookKeyB;
+        IRebalancer.Liquidity memory liquidityA;
+        IRebalancer.Liquidity memory liquidityB;
+        {
+            (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+            bookKeyA = bookManager.getBookKey(bookIdA);
+            bookKeyB = bookManager.getBookKey(bookIdB);
 
-        (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB) =
-            rebalancer.getLiquidity(key);
-        if (
-            liquidityA.cancelable
-                > _lastRawAmountsA[key] * bookKeyA.unitSize * config.rebalanceThreshold / RATE_PRECISION
-                || liquidityB.cancelable
-                    > _lastRawAmountsB[key] * bookKeyB.unitSize * config.rebalanceThreshold / RATE_PRECISION
-        ) {
-            return (ordersA, ordersB);
+            (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB) =
+                rebalancer.getLiquidity(key);
+
+            uint256 lastRawAmounts = _lastRawAmounts[key];
+            if (
+                liquidityA.cancelable
+                    > (lastRawAmounts >> 128) * bookKeyA.unitSize * config.rebalanceThreshold / RATE_PRECISION
+                    || liquidityB.cancelable
+                        > (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * bookKeyB.unitSize * config.rebalanceThreshold
+                            / RATE_PRECISION
+            ) {
+                return (ordersA, ordersB);
+            }
         }
 
         if (!_isOraclePriceValid(price.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
             return (ordersA, ordersB);
         }
-
-        // SimpleStrategy has only one bid and one ask order
-        ordersA = new Order[](1);
-        ordersB = new Order[](1);
 
         (uint256 amountA, uint256 amountB) = _calculateAmounts(
             liquidityA.reserve + liquidityA.cancelable + liquidityA.claimable,
@@ -103,6 +109,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         if (bookKeyA.makerPolicy.usesQuote()) amountA = bookKeyA.makerPolicy.calculateOriginalAmount(amountA, false);
         if (bookKeyB.makerPolicy.usesQuote()) amountB = bookKeyB.makerPolicy.calculateOriginalAmount(amountB, false);
 
+        // SimpleStrategy has only one bid and one ask order
+        ordersA = new Order[](1);
+        ordersB = new Order[](1);
         ordersA[0] = Order({
             tick: price.tickA,
             rawAmount: SafeCast.toUint64(amountA * _alpha / bookKeyA.unitSize / RATE_PRECISION)
@@ -258,8 +267,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
     function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 totalSupply) external {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
-        _lastRawAmountsA[key] -= _lastRawAmountsA[key] * burnAmount / totalSupply;
-        _lastRawAmountsB[key] -= _lastRawAmountsB[key] * burnAmount / totalSupply;
+        uint256 lastRawAmounts = _lastRawAmounts[key];
+        _lastRawAmounts[key] = lastRawAmounts - (lastRawAmounts >> 128) * burnAmount / totalSupply
+            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / totalSupply;
     }
 
     function rebalanceHook(address sender, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB)
@@ -277,7 +287,6 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
             IStrategy.Order memory order = liquidityB[i];
             lastRawAmountB += order.rawAmount;
         }
-        _lastRawAmountsA[key] = lastRawAmountA;
-        _lastRawAmountsB[key] = lastRawAmountB;
+        _lastRawAmounts[key] = lastRawAmountA << 128 + lastRawAmountB;
     }
 }
