@@ -22,7 +22,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     using TickLibrary for Tick;
 
     uint256 public constant RATE_PRECISION = 1e6;
-    uint256 public constant LAST_RAW_AMOUNT_MASK = 1 << 128 - 1;
+    uint256 public constant LAST_RAW_AMOUNT_MASK = (1 << 128) - 1;
 
     IOracle public immutable referenceOracle;
     IRebalancer public immutable rebalancer;
@@ -258,8 +258,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     function burnHook(address, bytes32 key, uint256 burnAmount, uint256 totalSupply) external {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
         uint256 lastRawAmounts = _lastRawAmounts[key];
-        _lastRawAmounts[key] = lastRawAmounts - ((lastRawAmounts >> 128) * burnAmount / totalSupply)
-            << 128 - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / totalSupply;
+        _lastRawAmounts[key] = lastRawAmounts - (((lastRawAmounts >> 128) * burnAmount / totalSupply) << 128)
+            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / totalSupply;
     }
 
     function rebalanceHook(address, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB) external {
@@ -275,6 +275,6 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
             IStrategy.Order memory order = liquidityB[i];
             lastRawAmountB += order.rawAmount;
         }
-        _lastRawAmounts[key] = lastRawAmountA << 128 + lastRawAmountB;
+        _lastRawAmounts[key] = (lastRawAmountA << 128) + lastRawAmountB;
     }
 }
