@@ -16,7 +16,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   const chain = await getChain(network.provider)
   const deployer = (await getNamedAccounts())['deployer'] as Address
 
-  if (await deployments.getOrNull('Oracle')) {
+  if (await deployments.getOrNull('ChainlinkOracle')) {
     return
   }
 
@@ -32,7 +32,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   }
 
   const args = [CHAINLINK_SEQUENCER_ORACLE[chainId], ORACLE_TIMEOUT[chainId], SEQUENCER_GRACE_PERIOD[chainId], owner]
-  await deployWithVerify(hre, 'Oracle', args)
+  await deployWithVerify(hre, 'ChainlinkOracle', args)
 }
 
 deployFunction.tags = ['Oracle']
