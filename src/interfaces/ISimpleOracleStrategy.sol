@@ -6,11 +6,12 @@ import {Tick} from "clober-dex/v2-core/libraries/Tick.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 
 import {IStrategy} from "./IStrategy.sol";
-import {IPoolStorage} from "./IPoolStorage.sol";
 import {IOracle} from "./IOracle.sol";
+import "./IRebalancer.sol";
 
 interface ISimpleOracleStrategy is IStrategy {
     error InvalidPrice();
+    error InvalidAccess();
     error InvalidConfig();
     error InvalidValue();
     error ExceedsThreshold();
@@ -18,10 +19,11 @@ interface ISimpleOracleStrategy is IStrategy {
 
     event SetOperator(address indexed operator, bool status);
     event UpdateConfig(bytes32 indexed key, Config config);
-    event UpdatePrice(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 alpha);
+    event UpdatePosition(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 rate);
 
     struct Config {
         uint24 referenceThreshold;
+        uint24 rebalanceThreshold;
         uint24 rateA;
         uint24 rateB;
         uint24 minRateA;
@@ -30,15 +32,14 @@ interface ISimpleOracleStrategy is IStrategy {
         uint24 priceThresholdB;
     }
 
-    struct Price {
-        uint208 oraclePrice;
+    struct Position {
+        uint184 oraclePrice;
+        uint24 rate;
         Tick tickA;
         Tick tickB;
     }
 
     function referenceOracle() external view returns (IOracle);
-
-    function poolStorage() external view returns (IPoolStorage);
 
     function bookManager() external view returns (IBookManager);
 
@@ -46,13 +47,13 @@ interface ISimpleOracleStrategy is IStrategy {
 
     function getConfig(bytes32 key) external view returns (Config memory);
 
-    function getPrice(bytes32 key) external view returns (Price memory);
+    function getPosition(bytes32 key) external view returns (Position memory);
 
-    function getAlpha() external view returns (uint256);
+    function getLastRawAmount(bytes32 key) external view returns (uint256, uint256);
 
     function isOraclePriceValid(bytes32 key) external view returns (bool);
 
-    function updatePrice(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 alpha) external;
+    function updatePosition(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint24 rate) external;
 
     function setConfig(bytes32 key, Config memory config) external;
 

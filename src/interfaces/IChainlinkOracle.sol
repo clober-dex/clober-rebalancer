@@ -15,8 +15,6 @@ interface IChainlinkOracle is IOracle {
     event SetFallbackOracle(address indexed newFallbackOracle);
     event SetFeed(address indexed asset, address[] feeds);
 
-    function decimals() external view returns (uint8);
-
     function sequencerOracle() external view returns (address);
 
     function timeout() external view returns (uint256);
@@ -26,10 +24,6 @@ interface IChainlinkOracle is IOracle {
     function fallbackOracle() external view returns (address);
 
     function getFeeds(address asset) external view returns (address[] memory);
-
-    function getAssetPrice(address asset) external view returns (uint256);
-
-    function getAssetsPrices(address[] calldata assets) external view returns (uint256[] memory);
 
     function isSequencerValid() external view returns (bool);
 

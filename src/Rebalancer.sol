@@ -16,11 +16,10 @@ import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolic
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
-import {IPoolStorage} from "./interfaces/IPoolStorage.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolStorage {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -214,7 +213,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         pool.reserveB += amountB;
 
         _mint(msg.sender, uint256(key), mintAmount);
-
+        pool.strategy.mintHook(msg.sender, key, mintAmount, supply);
         emit Mint(msg.sender, key, amountA, amountB, mintAmount);
 
         if (refund > 0) {
@@ -303,6 +302,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
         withdrawalB = (reserveB + claimedAmountB) * burnAmount / supply + canceledAmountB;
 
         _burn(user, uint256(key), burnAmount);
+        pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
         emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
@@ -319,33 +319,26 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, IPoolS
 
     function _rebalance(bytes32 key) public selfOnly {
         Pool storage pool = _pools[key];
-
-        (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB) =
-            _clearPool(key, pool, 1, 1);
-
         uint256 reserveA = pool.reserveA;
         uint256 reserveB = pool.reserveB;
-
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
         IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(pool.bookIdB);
 
         // Compute allocation
-        IStrategy.Order[] memory liquidityA;
-        IStrategy.Order[] memory liquidityB;
-        try pool.strategy.computeOrders(
-            key, reserveA + claimedAmountA + canceledAmountA, reserveB + claimedAmountB + canceledAmountB
-        ) returns (IStrategy.Order[] memory a, IStrategy.Order[] memory b) {
-            liquidityA = a;
-            liquidityB = b;
-        } catch {}
+        try pool.strategy.computeOrders(key) returns (
+            IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB
+        ) {
+            _clearPool(key, pool, 1, 1);
 
-        _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
-        _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
+            _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
+            _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
+
+            pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB);
+            emit Rebalance(key);
+        } catch {}
 
         pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
         pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
-
-        emit Rebalance(key);
     }
 
     function _clearPool(bytes32 key, Pool storage pool, uint256 cancelNumerator, uint256 cancelDenominator)

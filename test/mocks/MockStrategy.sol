@@ -9,11 +9,7 @@ contract MockStrategy is IStrategy {
     Order public orderA;
     Order public orderB;
 
-    function computeOrders(bytes32, uint256, uint256)
-        external
-        view
-        returns (Order[] memory ordersA, Order[] memory ordersB)
-    {
+    function computeOrders(bytes32) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
         if (shouldRevert) {
             revert("MockStrategy: Revert");
         }
@@ -31,4 +27,13 @@ contract MockStrategy is IStrategy {
     function setShouldRevert(bool _shouldRevert) public {
         shouldRevert = _shouldRevert;
     }
+
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external view {}
+
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 totalSupply) external view {}
+
+    function rebalanceHook(address sender, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB)
+        external
+        view
+    {}
 }

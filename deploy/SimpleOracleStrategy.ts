@@ -14,7 +14,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     return
   }
 
-  const oracle = await deployments.get('Oracle')
+  const oracle = await deployments.get('ChainlinkOracle')
   const rebalancer = await deployments.get('Rebalancer')
 
   let owner: Address = '0x'

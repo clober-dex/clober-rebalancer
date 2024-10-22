@@ -8,6 +8,7 @@ import "clober-dex/v2-core/BookManager.sol";
 import "solmate/test/utils/mocks/MockERC20.sol";
 
 import "../src/SimpleOracleStrategy.sol";
+import "../src/interfaces/IRebalancer.sol";
 import "./mocks/MockOracle.sol";
 import "./mocks/OpenRouter.sol";
 
@@ -23,6 +24,10 @@ contract SimpleOracleStrategyTest is Test {
     MockERC20 public tokenB;
     IBookManager.BookKey public keyA;
     IBookManager.BookKey public keyB;
+    uint256 public reserveA;
+    uint256 public reserveB;
+    uint256 public cancelableA;
+    uint256 public cancelableB;
     bytes32 public key;
 
     function setUp() public {
@@ -54,7 +59,7 @@ contract SimpleOracleStrategyTest is Test {
         cloberOpenRouter.open(keyA, "");
         cloberOpenRouter.open(keyB, "");
 
-        strategy = new SimpleOracleStrategy(oracle, IPoolStorage(address(this)), bookManager, address(this));
+        strategy = new SimpleOracleStrategy(oracle, IRebalancer(address(this)), bookManager, address(this));
 
         key = bytes32(uint256(123123));
 
@@ -62,6 +67,7 @@ contract SimpleOracleStrategyTest is Test {
             key,
             ISimpleOracleStrategy.Config({
                 referenceThreshold: 40000, // 4%
+                rebalanceThreshold: 100000, // 10%
                 rateA: 10000, // 1%
                 rateB: 10000, // 1%
                 minRateA: 3000, // 0.3%
@@ -86,7 +92,7 @@ contract SimpleOracleStrategyTest is Test {
     }
 
     function testIsOraclePriceValid() public {
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         assertTrue(strategy.isOraclePriceValid(key));
     }
 
@@ -97,39 +103,39 @@ contract SimpleOracleStrategyTest is Test {
     }
 
     function testIsOraclePriceValidWhenOraclePriceIsOutOfRange() public {
-        strategy.updatePrice(key, Tick.wrap(-1951).toPrice(), Tick.wrap(-1953), Tick.wrap(1949), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-1951).toPrice(), Tick.wrap(-1953), Tick.wrap(1949), 1000000);
         assertFalse(strategy.isOraclePriceValid(key));
     }
 
     function testUpdatePrice() public {
         vm.expectEmit(address(strategy));
-        emit ISimpleOracleStrategy.UpdatePrice(key, 3367_73789741, Tick.wrap(-195304), Tick.wrap(194905), 1000000);
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        emit ISimpleOracleStrategy.UpdatePosition(key, 3367_73789741, Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
 
-        SimpleOracleStrategy.Price memory price = strategy.getPrice(key);
-        assertEq(price.oraclePrice, 3367_73789741);
-        assertEq(Tick.unwrap(price.tickA), -195304);
-        assertEq(Tick.unwrap(price.tickB), 194905);
+        SimpleOracleStrategy.Position memory position = strategy.getPosition(key);
+        assertEq(position.oraclePrice, 3367_73789741);
+        assertEq(Tick.unwrap(position.tickA), -195304);
+        assertEq(Tick.unwrap(position.tickB), 194905);
 
         vm.expectEmit(address(strategy));
-        emit ISimpleOracleStrategy.UpdatePrice(key, 1238_98347920, Tick.wrap(-205304), Tick.wrap(204905), 1000000);
-        strategy.updatePrice(key, Tick.wrap(-205100).toPrice(), Tick.wrap(-205304), Tick.wrap(204905), 1000000);
+        emit ISimpleOracleStrategy.UpdatePosition(key, 1238_98347920, Tick.wrap(-205304), Tick.wrap(204905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-205100).toPrice(), Tick.wrap(-205304), Tick.wrap(204905), 1000000);
 
-        price = strategy.getPrice(key);
-        assertEq(price.oraclePrice, 1238_98347920);
-        assertEq(Tick.unwrap(price.tickA), -205304);
-        assertEq(Tick.unwrap(price.tickB), 204905);
+        position = strategy.getPosition(key);
+        assertEq(position.oraclePrice, 1238_98347920);
+        assertEq(Tick.unwrap(position.tickA), -205304);
+        assertEq(Tick.unwrap(position.tickB), 204905);
     }
 
     function testUpdatePriceOwnership() public {
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.NotOperator.selector));
         vm.prank(address(123));
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
     }
 
     function testUpdatePriceWhenBidPriceIsHigherThanAskPrice() public {
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidPrice.selector));
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195405), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195405), 1000000);
     }
 
     function testUpdatePriceWhenPricesAreTooFarFromOraclePrice() public {
@@ -139,26 +145,27 @@ contract SimpleOracleStrategyTest is Test {
         strategy.setConfig(key, config);
 
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-194954), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-194954), Tick.wrap(194905), 1000000);
 
         config.priceThresholdA = 1e5; // 10%
         config.priceThresholdB = 1e4; // 1%
         strategy.setConfig(key, config);
 
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195255), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195255), 1000000);
     }
 
     function testComputeOrders() public {
         // 1 ETH = 3367 USDT
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
 
-        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) =
-            strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
+        reserveA = 10000 * 1e6;
+        reserveB = 3 * 1e18;
+        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
@@ -166,7 +173,9 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(ordersA[0].rawAmount, 100100100);
         assertEq(ordersB[0].rawAmount, 29663);
 
-        (ordersA, ordersB) = strategy.computeOrders(key, 10000 * 1e6, 1 * 1e18);
+        reserveA = 10000 * 1e6;
+        reserveB = 1 * 1e18;
+        (ordersA, ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
@@ -174,22 +183,41 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(ordersA[0].rawAmount, 33711089);
         assertEq(ordersB[0].rawAmount, 9990);
 
-        (ordersA, ordersB) = strategy.computeOrders(key, 1000 * 1e6, 3 * 1e18);
+        reserveA = 1000 * 1e6;
+        reserveB = 3 * 1e18;
+        (ordersA, ordersB) = strategy.computeOrders(key);
+        cancelableA = 1001001;
+        cancelableB = 899100000000001;
+        strategy.rebalanceHook(address(this), key, ordersA, ordersB);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
         assertEq(Tick.unwrap(ordersB[0].tick), 194905);
         assertEq(ordersA[0].rawAmount, 10010010);
         assertEq(ordersB[0].rawAmount, 8991);
+
+        (ordersA, ordersB) = strategy.computeOrders(key);
+        assertEq(ordersA.length, 0);
+        assertEq(ordersB.length, 0);
     }
 
     function testComputeOrdersWhenOraclePriceIsInvalid() public {
-        strategy.updatePrice(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         oracle.setValidity(false);
 
-        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) =
-            strategy.computeOrders(key, 10000 * 1e6, 3 * 1e18);
+        (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 0);
         assertEq(ordersB.length, 0);
+    }
+
+    function getLiquidity(bytes32)
+        public
+        view
+        returns (IRebalancer.Liquidity memory liquidityA, IRebalancer.Liquidity memory liquidityB)
+    {
+        return (
+            IRebalancer.Liquidity({reserve: reserveA, claimable: 0, cancelable: cancelableA}),
+            IRebalancer.Liquidity({reserve: reserveB, claimable: 0, cancelable: cancelableB})
+        );
     }
 }
