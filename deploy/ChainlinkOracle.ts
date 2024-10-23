@@ -9,7 +9,7 @@ import {
 } from '../utils'
 import { getChain, isDevelopmentNetwork } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
-import { arbitrum } from 'viem/chains'
+import {arbitrum, base} from 'viem/chains'
 
 const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, network } = hre
@@ -25,7 +25,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   let owner: Address = '0x'
   if (chain.testnet || isDevelopmentNetwork(chainId)) {
     owner = deployer
-  } else if (chainId === arbitrum.id) {
+  } else if (chainId === arbitrum.id || chainId ==base.id) {
     owner = SAFE_WALLET[chainId] // Safe
   } else {
     throw new Error('Unknown chain')

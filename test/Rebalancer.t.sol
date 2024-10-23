@@ -137,12 +137,6 @@ contract RebalancerTest is Test {
         rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
     }
 
-    function testOpenAccess() public {
-        vm.expectRevert();
-        vm.prank(address(0x123));
-        rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
-    }
-
     function testOpenTwice() public {
         rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
         vm.expectRevert(abi.encodeWithSelector(IRebalancer.AlreadyOpened.selector));

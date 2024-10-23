@@ -81,6 +81,4 @@ interface IRebalancer {
     function pause(bytes32 key) external;
 
     function resume(bytes32 key) external;
-
-    function setStrategy(bytes32 key, address strategy) external;
 }
