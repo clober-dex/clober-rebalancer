@@ -111,7 +111,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         IBookManager.BookKey calldata bookKeyB,
         bytes32 salt,
         address strategy
-    ) external onlyOwner returns (bytes32) {
+    ) external returns (bytes32) {
         return abi.decode(
             bookManager.lock(
                 address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, salt, strategy)
@@ -417,11 +417,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     function _encodeKey(BookId bookIdA, BookId bookIdB, bytes32 salt) internal pure returns (bytes32) {
         if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
         return keccak256(abi.encodePacked(bookIdA, bookIdB, salt));
-    }
-
-    // TODO: This function only exists in the test contract
-    function setStrategy(bytes32 key, address strategy) external onlyOwner {
-        _pools[key].strategy = IStrategy(strategy);
     }
 
     receive() external payable {}
