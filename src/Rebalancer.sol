@@ -336,7 +336,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
 
             pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB);
             emit Rebalance(key);
-        } catch {}
+        } catch {
+            _clearPool(key, pool, 1, 1);
+        }
 
         pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
         pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);

@@ -205,9 +205,8 @@ contract SimpleOracleStrategyTest is Test {
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         oracle.setValidity(false);
 
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidOraclePrice.selector));
         (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key);
-        assertEq(ordersA.length, 0);
-        assertEq(ordersB.length, 0);
     }
 
     function getLiquidity(bytes32)
