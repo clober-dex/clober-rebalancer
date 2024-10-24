@@ -107,7 +107,7 @@ contract SimpleOracleStrategyTest is Test {
         assertFalse(strategy.isOraclePriceValid(key));
     }
 
-    function testUpdatePrice() public {
+    function testUpdatePosition() public {
         vm.expectEmit(address(strategy));
         emit ISimpleOracleStrategy.UpdatePosition(key, 3367_73789741, Tick.wrap(-195304), Tick.wrap(194905), 1000000);
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
@@ -127,18 +127,18 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(Tick.unwrap(position.tickB), 204905);
     }
 
-    function testUpdatePriceOwnership() public {
+    function testUpdatePositionOwnership() public {
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.NotOperator.selector));
         vm.prank(address(123));
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
     }
 
-    function testUpdatePriceWhenBidPriceIsHigherThanAskPrice() public {
+    function testUpdatePositionWhenBidPriceIsHigherThanAskPrice() public {
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidPrice.selector));
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195405), 1000000);
     }
 
-    function testUpdatePriceWhenPricesAreTooFarFromOraclePrice() public {
+    function testUpdatePositionWhenPricesAreTooFarFromOraclePrice() public {
         ISimpleOracleStrategy.Config memory config = strategy.getConfig(key);
         config.priceThresholdA = 1e4; // 1%
         config.priceThresholdB = 1e5; // 10%
@@ -203,6 +203,49 @@ contract SimpleOracleStrategyTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidOraclePrice.selector));
         (IStrategy.Order[] memory ordersA, IStrategy.Order[] memory ordersB) = strategy.computeOrders(key);
+    }
+
+    function testPause() public {
+        vm.expectEmit(address(strategy));
+        emit ISimpleOracleStrategy.Pause(key);
+        strategy.pause(key);
+
+        SimpleOracleStrategy.Position memory position = strategy.getPosition(key);
+        assertTrue(position.paused);
+        assertTrue(strategy.isPaused(key));
+
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.Paused.selector));
+        strategy.computeOrders(key);
+    }
+
+    function testPauseOwnership() public {
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.NotOperator.selector));
+        vm.prank(address(123));
+        strategy.pause(key);
+    }
+
+    function testUnpause() public {
+        strategy.pause(key);
+
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+
+        vm.expectEmit(address(strategy));
+        emit ISimpleOracleStrategy.Unpause(key);
+        strategy.unpause(key);
+
+        SimpleOracleStrategy.Position memory position = strategy.getPosition(key);
+        assertFalse(position.paused);
+        assertFalse(strategy.isPaused(key));
+
+        strategy.computeOrders(key);
+    }
+
+    function testUnpauseOwnership() public {
+        strategy.pause(key);
+
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.NotOperator.selector));
+        vm.prank(address(123));
+        strategy.unpause(key);
     }
 
     function getLiquidity(bytes32)
