@@ -258,11 +258,11 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
     }
 
-    function burnHook(address, bytes32 key, uint256 burnAmount, uint256 totalSupply) external {
+    function burnHook(address, bytes32 key, uint256 burnAmount, uint256 lastTotalSupply) external {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
         uint256 lastRawAmounts = _lastRawAmounts[key];
-        _lastRawAmounts[key] = lastRawAmounts - (((lastRawAmounts >> 128) * burnAmount / totalSupply) << 128)
-            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / totalSupply;
+        _lastRawAmounts[key] = lastRawAmounts - (((lastRawAmounts >> 128) * burnAmount / lastTotalSupply) << 128)
+            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / lastTotalSupply;
     }
 
     function rebalanceHook(address, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB) external {

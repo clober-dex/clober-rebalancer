@@ -25,18 +25,18 @@ interface IStrategy {
      * @param sender The address of the sender.
      * @param key The key of the pool.
      * @param mintAmount The amount minted.
-     * @param totalSupply The total supply after minting.
+     * @param lastTotalSupply The total supply before minting.
      */
-    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external;
+    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 lastTotalSupply) external;
 
     /**
-    * @notice Hook that is called after burning.
+     * @notice Hook that is called after burning.
      * @param sender The address of the sender.
      * @param key The key of the pool.
      * @param burnAmount The amount burned.
-     * @param totalSupply The total supply after burning.
+     * @param lastTotalSupply The total supply before burning.
      */
-    function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 totalSupply) external;
+    function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 lastTotalSupply) external;
 
     /**
      * @notice Hook that is called after rebalancing.
