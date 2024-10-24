@@ -17,10 +17,13 @@ interface ISimpleOracleStrategy is IStrategy {
     error InvalidValue();
     error ExceedsThreshold();
     error NotOperator();
+    error Paused();
 
     event SetOperator(address indexed operator, bool status);
     event UpdateConfig(bytes32 indexed key, Config config);
     event UpdatePosition(bytes32 indexed key, uint256 oraclePrice, Tick tickA, Tick tickB, uint256 rate);
+    event Pause(bytes32 indexed key);
+    event Unpause(bytes32 indexed key);
 
     struct Config {
         uint24 referenceThreshold;
@@ -34,7 +37,8 @@ interface ISimpleOracleStrategy is IStrategy {
     }
 
     struct Position {
-        uint184 oraclePrice;
+        bool paused;
+        uint128 oraclePrice;
         uint24 rate;
         Tick tickA;
         Tick tickB;
@@ -53,6 +57,12 @@ interface ISimpleOracleStrategy is IStrategy {
     function getLastRawAmount(bytes32 key) external view returns (uint256, uint256);
 
     function isOraclePriceValid(bytes32 key) external view returns (bool);
+
+    function isPaused(bytes32 key) external view returns (bool);
+
+    function pause(bytes32 key) external;
+
+    function unpause(bytes32 key) external;
 
     function updatePosition(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint24 rate) external;
 

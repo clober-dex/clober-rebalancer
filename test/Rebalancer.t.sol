@@ -153,19 +153,6 @@ contract RebalancerTest is Test {
         rebalancer.mint(key, 0, 12341234, 0);
     }
 
-    function testPause() public {
-        vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Pause(key, true);
-        rebalancer.pause(key);
-
-        vm.expectRevert(abi.encodeWithSelector(IRebalancer.Paused.selector));
-        rebalancer.rebalance(key);
-
-        vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Pause(key, false);
-        rebalancer.resume(key);
-    }
-
     function testMintInitially() public {
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "INITIAL_SUPPLY");
 
@@ -355,6 +342,19 @@ contract RebalancerTest is Test {
         assertEq(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(afterPool.orderListA.length, 1, "ORDER_LIST_A");
         assertEq(afterPool.orderListB.length, 1, "ORDER_LIST_B");
+    }
+
+    function testRebalanceShouldClearOrdersWhenComputeOrdersReverted() public {
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
+        rebalancer.rebalance(key);
+
+        strategy.setShouldRevert(true);
+
+        rebalancer.rebalance(key);
+
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        assertEq(afterPool.orderListA.length, 0, "ORDER_LIST_A");
+        assertEq(afterPool.orderListB.length, 0, "ORDER_LIST_B");
     }
 
     function testRebalanceAfterSomeOrdersHaveTaken() public {

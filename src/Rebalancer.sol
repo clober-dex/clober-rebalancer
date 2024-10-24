@@ -40,11 +40,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         _;
     }
 
-    modifier notPaused(bytes32 key) {
-        if (_pools[key].paused) revert Paused();
-        _;
-    }
-
     constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
         bookManager = bookManager_;
     }
@@ -118,25 +113,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
             ),
             (bytes32)
         );
-    }
-
-    function pause(bytes32 key) external onlyOwner {
-        Pool storage pool = _pools[key];
-
-        (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB) =
-            _clearPool(key, pool, 1, 1);
-
-        pool.reserveA += canceledAmountA + claimedAmountA;
-        pool.reserveB += canceledAmountB + claimedAmountB;
-        pool.paused = true;
-
-        emit Pause(key, true);
-    }
-
-    function resume(bytes32 key) external onlyOwner {
-        _pools[key].paused = false;
-
-        emit Pause(key, false);
     }
 
     function mint(bytes32 key, uint256 amountA, uint256 amountB, uint256 minLpAmount)
@@ -239,7 +215,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         if (withdrawalA < minAmountA || withdrawalB < minAmountB) revert Slippage();
     }
 
-    function rebalance(bytes32 key) public notPaused(key) {
+    function rebalance(bytes32 key) public {
         bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, key));
     }
 

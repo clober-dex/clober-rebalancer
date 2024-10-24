@@ -60,8 +60,10 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     }
 
     function computeOrders(bytes32 key) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
-        Config memory config = _configs[key];
         Position memory position = _positions[key];
+        if (position.paused) revert Paused();
+
+        Config memory config = _configs[key];
 
         IBookManager.BookKey memory bookKeyA;
         IBookManager.BookKey memory bookKeyB;
@@ -200,6 +202,21 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return true;
     }
 
+    function isPaused(bytes32 key) external view returns (bool) {
+        return _positions[key].paused;
+    }
+
+    function pause(bytes32 key) external onlyOperator {
+        delete _lastRawAmounts[key];
+        _positions[key].paused = true;
+        emit Pause(key);
+    }
+
+    function unpause(bytes32 key) external onlyOperator {
+        _positions[key].paused = false;
+        emit Unpause(key);
+    }
+
     function updatePosition(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint24 rate)
         external
         onlyOperator
@@ -226,8 +243,13 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         oraclePrice = oraclePrice * 10 ** decimalsB / 10 ** decimalsA;
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
 
-        _positions[key] =
-            Position({oraclePrice: SafeCast.toUint184(oraclePrice), tickA: tickA, tickB: tickB, rate: rate});
+        Position memory position = _positions[key];
+        position.oraclePrice = SafeCast.toUint128(oraclePrice);
+        position.tickA = tickA;
+        position.tickB = tickB;
+        position.rate = rate;
+
+        _positions[key] = position;
         emit UpdatePosition(key, oraclePrice, tickA, tickB, rate);
     }
 
@@ -258,11 +280,11 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
     }
 
-    function burnHook(address, bytes32 key, uint256 burnAmount, uint256 totalSupply) external {
+    function burnHook(address, bytes32 key, uint256 burnAmount, uint256 lastTotalSupply) external {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
         uint256 lastRawAmounts = _lastRawAmounts[key];
-        _lastRawAmounts[key] = lastRawAmounts - (((lastRawAmounts >> 128) * burnAmount / totalSupply) << 128)
-            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / totalSupply;
+        _lastRawAmounts[key] = lastRawAmounts - (((lastRawAmounts >> 128) * burnAmount / lastTotalSupply) << 128)
+            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / lastTotalSupply;
     }
 
     function rebalanceHook(address, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB) external {
