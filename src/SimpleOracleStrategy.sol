@@ -207,6 +207,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     }
 
     function pause(bytes32 key) external onlyOperator {
+        delete _lastRawAmounts[key];
         _positions[key].paused = true;
         emit Pause(key);
     }

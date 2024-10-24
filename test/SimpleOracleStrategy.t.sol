@@ -216,6 +216,10 @@ contract SimpleOracleStrategyTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.Paused.selector));
         strategy.computeOrders(key);
+
+        (uint256 ra, uint256 rb) = strategy.getLastRawAmount(key);
+        assertEq(ra, 0);
+        assertEq(rb, 0);
     }
 
     function testPauseOwnership() public {
