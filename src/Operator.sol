@@ -25,7 +25,15 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function updatePosition(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint24 rate) external onlyOwner {
+        if (oracleStrategy.isPaused(key)) {
+            oracleStrategy.unpause(key);
+        }
         oracleStrategy.updatePosition(key, oraclePrice, tickA, tickB, rate);
+        rebalancer.rebalance(key);
+    }
+
+    function pause(bytes32 key) external onlyOwner {
+        oracleStrategy.pause(key);
         rebalancer.rebalance(key);
     }
 }
