@@ -213,8 +213,6 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         Config memory config = _configs[key];
         if (
             oraclePrice * (RATE_PRECISION + config.priceThresholdA) / RATE_PRECISION < priceA
-                || oraclePrice * (RATE_PRECISION - config.priceThresholdA) / RATE_PRECISION > priceA
-                || oraclePrice * (RATE_PRECISION + config.priceThresholdB) / RATE_PRECISION < priceB
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdB) / RATE_PRECISION > priceB
         ) revert ExceedsThreshold();
 
