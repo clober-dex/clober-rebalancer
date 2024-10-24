@@ -344,6 +344,19 @@ contract RebalancerTest is Test {
         assertEq(afterPool.orderListB.length, 1, "ORDER_LIST_B");
     }
 
+    function testRebalanceShouldClearOrdersWhenComputeOrdersReverted() public {
+        rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
+        rebalancer.rebalance(key);
+
+        strategy.setShouldRevert(true);
+
+        rebalancer.rebalance(key);
+
+        IRebalancer.Pool memory afterPool = rebalancer.getPool(key);
+        assertEq(afterPool.orderListA.length, 0, "ORDER_LIST_A");
+        assertEq(afterPool.orderListB.length, 0, "ORDER_LIST_B");
+    }
+
     function testRebalanceAfterSomeOrdersHaveTaken() public {
         rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
         rebalancer.rebalance(key);
