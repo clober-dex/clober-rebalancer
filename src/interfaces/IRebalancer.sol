@@ -14,7 +14,6 @@ interface IRebalancer {
         BookId bookIdA;
         BookId bookIdB;
         IStrategy strategy;
-        bool paused;
         uint256 reserveA;
         uint256 reserveB;
         OrderId[] orderListA;
