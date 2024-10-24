@@ -328,6 +328,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         try pool.strategy.computeOrders(key) returns (
             IStrategy.Order[] memory liquidityA, IStrategy.Order[] memory liquidityB
         ) {
+            if (liquidityA.length == 0 && liquidityB.length == 0) return;
             _clearPool(key, pool, 1, 1);
 
             _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
@@ -335,7 +336,9 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
 
             pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB);
             emit Rebalance(key);
-        } catch {}
+        } catch {
+            _clearPool(key, pool, 1, 1);
+        }
 
         pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
         pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);

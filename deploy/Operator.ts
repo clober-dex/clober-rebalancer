@@ -17,8 +17,8 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   let owner: Address = '0x'
   if (chain.testnet || isDevelopmentNetwork(chain.id)) {
     owner = deployer
-  } else if (chain.id === arbitrum.id || chain.id === base.id) {
-    owner = SAFE_WALLET[chain.id] // Safe
+  } else if (chain.id === base.id) {
+    owner = '0x872251F2C0cC5699c9e0C226371c4D747fDA247f' // bot address
   } else {
     throw new Error('Unknown chain')
   }

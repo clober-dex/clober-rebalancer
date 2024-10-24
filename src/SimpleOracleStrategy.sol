@@ -81,9 +81,12 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
                     || liquidityB.cancelable
                         > (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * bookKeyB.unitSize * config.rebalanceThreshold
                             / RATE_PRECISION
-                    || !_isOraclePriceValid(position.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)
             ) {
                 return (ordersA, ordersB);
+            }
+
+            if (!_isOraclePriceValid(position.oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
+                revert InvalidOraclePrice();
             }
         }
 
@@ -110,6 +113,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
             tick: position.tickB,
             rawAmount: SafeCast.toUint64(amountB * position.rate / bookKeyB.unitSize / RATE_PRECISION)
         });
+
+        return (ordersA, ordersB);
     }
 
     function _calculateAmounts(

@@ -12,6 +12,7 @@ import "./IRebalancer.sol";
 interface ISimpleOracleStrategy is IStrategy {
     error InvalidPrice();
     error InvalidAccess();
+    error InvalidOraclePrice();
     error InvalidConfig();
     error InvalidValue();
     error ExceedsThreshold();
