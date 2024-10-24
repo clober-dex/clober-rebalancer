@@ -145,14 +145,14 @@ contract SimpleOracleStrategyTest is Test {
         strategy.setConfig(key, config);
 
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
-        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-194954), Tick.wrap(194905), 1000000);
 
         config.priceThresholdA = 1e5; // 10%
         config.priceThresholdB = 1e4; // 1%
         strategy.setConfig(key, config);
 
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.ExceedsThreshold.selector));
-        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195255), 1000000);
     }
 
     function testComputeOrders() public {
