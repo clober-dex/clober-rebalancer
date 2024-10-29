@@ -23,7 +23,7 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function updatePosition(bytes32 key, uint256 oraclePrice, Tick tickA, Tick tickB, uint24 rate) external onlyOwner {
-        ISimpleOracleStrategy oracleStrategy = ISimpleOracleStrategy(rebalancer.getPool(key).strategy);
+        ISimpleOracleStrategy oracleStrategy = ISimpleOracleStrategy(address(rebalancer.getPool(key).strategy));
         if (oracleStrategy.isPaused(key)) {
             oracleStrategy.unpause(key);
         }
@@ -32,7 +32,7 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
     }
 
     function pause(bytes32 key) external onlyOwner {
-        ISimpleOracleStrategy(rebalancer.getPool(key).strategy).pause(key);
+        ISimpleOracleStrategy(address(rebalancer.getPool(key).strategy)).pause(key);
         rebalancer.rebalance(key);
     }
 }
