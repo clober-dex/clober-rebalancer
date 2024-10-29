@@ -386,7 +386,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         if (delta > 0) {
             bookManager.withdraw(currency, address(this), uint256(delta));
             liquidity += uint256(delta);
-        } else {
+        } else if (delta < 0) {
             currency.transfer(address(bookManager), uint256(-delta));
             bookManager.settle(currency);
             liquidity -= uint256(-delta);
