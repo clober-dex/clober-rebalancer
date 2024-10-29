@@ -320,6 +320,24 @@ contract RebalancerTest is Test {
         rebalancer.burn(key, 1e18, 1e21, 1e18 + 1);
     }
 
+    function testBurnAll() public {
+        rebalancer.mint(key, 1e18, 1e21, 0);
+        rebalancer.rebalance(key);
+        uint256 lpAmount = rebalancer.balanceOf(address(this), uint256(key));
+
+        uint256 beforeTokenABalance = tokenA.balanceOf(address(this));
+        uint256 beforeTokenBBalance = tokenB.balanceOf(address(this));
+
+        vm.expectEmit(address(rebalancer));
+        emit IRebalancer.Burn(address(this), key, 1e18, 1e21, lpAmount);
+        rebalancer.burn(key, lpAmount, 0, 0);
+
+        assertEq(rebalancer.totalSupply(uint256(key)), 0, "TOTAL_SUPPLY");
+        assertEq(rebalancer.balanceOf(address(this), uint256(key)), 0, "LP_BALANCE");
+        assertEq(tokenA.balanceOf(address(this)), 1e18 + beforeTokenABalance, "A_BALANCE");
+        assertEq(tokenB.balanceOf(address(this)), 1e21 + beforeTokenBBalance, "B_BALANCE");
+    }
+
     function testRebalance() public {
         rebalancer.mint(key, 1e18 + 141231, 1e21 + 241245, 0);
 
