@@ -8,6 +8,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 
 import "./interfaces/ISimpleOracleStrategy.sol";
 import "./interfaces/IRebalancer.sol";
+import {IDatastreamOracle} from "./interfaces/IDatastreamOracle.sol";
 
 contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
     IRebalancer public immutable rebalancer;
@@ -29,6 +30,7 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
         }
         oracleStrategy.updatePosition(key, oraclePrice, tickA, tickB, rate);
         rebalancer.rebalance(key);
+        IDatastreamOracle(address(oracleStrategy.referenceOracle())).request();
     }
 
     function pause(bytes32 key) external onlyOwner {
