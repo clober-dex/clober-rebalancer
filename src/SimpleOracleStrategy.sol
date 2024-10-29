@@ -250,6 +250,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         position.rate = rate;
 
         _positions[key] = position;
+        delete _lastRawAmounts[key];
         emit UpdatePosition(key, oraclePrice, tickA, tickB, rate);
     }
 
