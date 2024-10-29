@@ -282,15 +282,16 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
+
+        pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA) - withdrawalA;
+        pool.reserveB = _settleCurrency(bookKeyA.base, reserveB) - withdrawalB;
+
         if (withdrawalA > 0) {
             bookKeyA.quote.transfer(user, withdrawalA);
         }
         if (withdrawalB > 0) {
             bookKeyA.base.transfer(user, withdrawalB);
         }
-
-        pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA) - withdrawalA;
-        pool.reserveB = _settleCurrency(bookKeyA.base, reserveB) - withdrawalB;
     }
 
     function _rebalance(bytes32 key) public selfOnly {
