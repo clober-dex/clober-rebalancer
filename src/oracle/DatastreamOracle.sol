@@ -33,7 +33,6 @@ contract DatastreamOracle is
     bytes32[] internal _feedIds;
     mapping(bytes32 => FeedData) public _feedData;
     mapping(address => uint256) internal _assetToPrice;
-    uint256 public requestedBitmap;
     address public fallbackOracle;
     address public forwarder;
 
