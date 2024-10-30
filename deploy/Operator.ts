@@ -3,7 +3,7 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { deployWithVerify, SAFE_WALLET, getDeployedAddress } from '../utils'
 import { getChain, isDevelopmentNetwork } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
-import {arbitrum, base} from 'viem/chains'
+import { arbitrum, base } from 'viem/chains'
 
 const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, network } = hre
@@ -23,22 +23,17 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     throw new Error('Unknown chain')
   }
 
-  await deployWithVerify(
-    hre,
-    'Operator',
-    [await getDeployedAddress('SimpleOracleStrategy'), await getDeployedAddress('Rebalancer')],
-    {
-      proxy: {
-        proxyContract: 'UUPS',
-        execute: {
-          methodName: 'initialize',
-          args: [owner],
-        },
+  await deployWithVerify(hre, 'Operator', [await getDeployedAddress('Rebalancer')], {
+    proxy: {
+      proxyContract: 'UUPS',
+      execute: {
+        methodName: 'initialize',
+        args: [owner],
       },
     },
-  )
+  })
 }
 
 deployFunction.tags = ['Operator']
-deployFunction.dependencies = ['Rebalancer', 'SimpleOracleStrategy']
+deployFunction.dependencies = ['Rebalancer']
 export default deployFunction
