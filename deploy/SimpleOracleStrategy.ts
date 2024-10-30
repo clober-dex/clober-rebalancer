@@ -3,7 +3,7 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { deployWithVerify, BOOK_MANAGER, SAFE_WALLET } from '../utils'
 import { getChain, isDevelopmentNetwork } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
-import {arbitrum, base} from 'viem/chains'
+import { arbitrum, arbitrumSepolia, base } from 'viem/chains'
 
 const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, network } = hre
@@ -14,19 +14,21 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     return
   }
 
-  const oracle = await deployments.get('ChainlinkOracle')
   const rebalancer = await deployments.get('Rebalancer')
 
+  let oracleAddress: Address = '0x'
   let owner: Address = '0x'
-  if (chain.testnet || isDevelopmentNetwork(chain.id)) {
+  if (chain.id == arbitrumSepolia.id) {
+    oracleAddress = (await deployments.get('DatastreamOracle')).address as Address
     owner = deployer
-  } else if (chain.id === arbitrum.id || chain.id === base.id) {
+  } else if (chain.id === base.id) {
+    oracleAddress = (await deployments.get('ChainlinkOracle')).address as Address
     owner = SAFE_WALLET[chain.id] // Safe
   } else {
     throw new Error('Unknown chain')
   }
 
-  const args = [oracle.address, rebalancer.address, BOOK_MANAGER[chain.id], owner]
+  const args = [oracleAddress, rebalancer.address, BOOK_MANAGER[chain.id], owner]
   await deployWithVerify(hre, 'SimpleOracleStrategy', args)
 }
 

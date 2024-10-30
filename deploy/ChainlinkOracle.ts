@@ -7,31 +7,28 @@ import {
   SEQUENCER_GRACE_PERIOD,
   SAFE_WALLET,
 } from '../utils'
-import { getChain, isDevelopmentNetwork } from '@nomicfoundation/hardhat-viem/internal/chains'
+import { getChain } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
-import {arbitrum, base} from 'viem/chains'
+import { arbitrumSepolia, base } from 'viem/chains'
 
 const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, network } = hre
+  const { deployments, network } = hre
   const chain = await getChain(network.provider)
-  const deployer = (await getNamedAccounts())['deployer'] as Address
 
   if (await deployments.getOrNull('ChainlinkOracle')) {
     return
   }
 
-  const chainId = chain.id
-
   let owner: Address = '0x'
-  if (chain.testnet || isDevelopmentNetwork(chainId)) {
-    owner = deployer
-  } else if (chainId === arbitrum.id || chainId ==base.id) {
-    owner = SAFE_WALLET[chainId] // Safe
+  if (chain.id == base.id) {
+    owner = SAFE_WALLET[chain.id] // Safe
+  } else if (chain.id == arbitrumSepolia.id) {
+    return
   } else {
     throw new Error('Unknown chain')
   }
 
-  const args = [CHAINLINK_SEQUENCER_ORACLE[chainId], ORACLE_TIMEOUT[chainId], SEQUENCER_GRACE_PERIOD[chainId], owner]
+  const args = [CHAINLINK_SEQUENCER_ORACLE[chain.id], ORACLE_TIMEOUT[chain.id], SEQUENCER_GRACE_PERIOD[chain.id], owner]
   await deployWithVerify(hre, 'ChainlinkOracle', args)
 }
 
