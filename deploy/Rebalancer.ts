@@ -3,7 +3,7 @@ import { DeployFunction } from 'hardhat-deploy/types'
 import { deployWithVerify, BOOK_MANAGER, SAFE_WALLET } from '../utils'
 import { getChain, isDevelopmentNetwork } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
-import {arbitrum, base} from 'viem/chains'
+import { arbitrum, base } from 'viem/chains'
 
 const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, network } = hre
