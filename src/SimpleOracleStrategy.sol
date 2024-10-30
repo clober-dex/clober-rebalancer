@@ -78,11 +78,14 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
             uint256 lastRawAmounts = _lastRawAmounts[key];
             if (
-                liquidityA.cancelable
-                    > (lastRawAmounts >> 128) * bookKeyA.unitSize * config.rebalanceThreshold / RATE_PRECISION
-                    || liquidityB.cancelable
-                        > (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * bookKeyB.unitSize * config.rebalanceThreshold
-                            / RATE_PRECISION
+                lastRawAmounts > 0
+                    && (
+                        liquidityA.cancelable
+                            > (lastRawAmounts >> 128) * bookKeyA.unitSize * config.rebalanceThreshold / RATE_PRECISION
+                            || liquidityB.cancelable
+                                > (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * bookKeyB.unitSize * config.rebalanceThreshold
+                                    / RATE_PRECISION
+                    )
             ) {
                 return (ordersA, ordersB);
             }

@@ -182,9 +182,6 @@ contract SimpleOracleStrategyTest is Test {
         reserveA = 1000 * 1e6;
         reserveB = 3 * 1e18;
         (ordersA, ordersB) = strategy.computeOrders(key);
-        cancelableA = 1001001;
-        cancelableB = 899100000000001;
-        strategy.rebalanceHook(address(this), key, ordersA, ordersB);
         assertEq(ordersA.length, 1);
         assertEq(ordersB.length, 1);
         assertEq(Tick.unwrap(ordersA[0].tick), -195304);
@@ -192,9 +189,30 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(ordersA[0].rawAmount, 10010010);
         assertEq(ordersB[0].rawAmount, 8991);
 
+        strategy.rebalanceHook(address(this), key, ordersA, ordersB);
+        (uint256 ra, uint256 rb) = strategy.getLastRawAmount(key);
+        assertEq(ra, 10010010);
+        assertEq(rb, 8991);
+
+        cancelableA = 1001001;
+        cancelableB = 899100000000001;
         (ordersA, ordersB) = strategy.computeOrders(key);
         assertEq(ordersA.length, 0);
         assertEq(ordersB.length, 0);
+
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+
+        (ra, rb) = strategy.getLastRawAmount(key);
+        assertEq(ra, 0);
+        assertEq(rb, 0);
+
+        (ordersA, ordersB) = strategy.computeOrders(key);
+        assertEq(ordersA.length, 1);
+        assertEq(ordersB.length, 1);
+        assertEq(Tick.unwrap(ordersA[0].tick), -195304);
+        assertEq(Tick.unwrap(ordersB[0].tick), 194905);
+        assertEq(ordersA[0].rawAmount, 10020030);
+        assertEq(ordersB[0].rawAmount, 8993);
     }
 
     function testComputeOrdersWhenOraclePriceIsInvalid() public {
