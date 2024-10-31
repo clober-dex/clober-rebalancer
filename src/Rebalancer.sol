@@ -197,13 +197,6 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         }
     }
 
-    struct BurnParams {
-        address user;
-        uint256 burnAmount;
-        uint256 minAmountA;
-        uint256 minAmountB;
-    }
-
     function burn(bytes32 key, uint256 amount, uint256 minAmountA, uint256 minAmountB)
         external
         returns (uint256 withdrawalA, uint256 withdrawalB)
