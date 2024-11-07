@@ -22,7 +22,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     oracleAddress = (await deployments.get('DatastreamOracle')).address as Address
     owner = deployer
   } else if (chain.id === base.id) {
-    oracleAddress = (await deployments.get('ChainlinkOracle')).address as Address
+    oracleAddress = (await deployments.get('DatastreamOracle')).address as Address
     owner = SAFE_WALLET[chain.id] // Safe
   } else {
     throw new Error('Unknown chain')
