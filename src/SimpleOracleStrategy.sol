@@ -170,6 +170,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     function isOraclePriceValid(bytes32 key) external view returns (bool) {
         Config memory config = _configs[key];
         Position memory position = _positions[key];
+        if (position.paused) {
+            return false;
+        }
 
         (BookId bookIdA,) = rebalancer.getBookPairs(key);
 
