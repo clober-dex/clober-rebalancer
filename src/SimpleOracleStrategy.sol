@@ -238,9 +238,6 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
         (BookId bookIdA,) = rebalancer.getBookPairs(key);
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        if (!_isOraclePriceValid(oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
-            revert InvalidOraclePrice();
-        }
 
         uint8 decimalsA = _getCurrencyDecimals(bookKeyA.quote);
         uint8 decimalsB = _getCurrencyDecimals(bookKeyA.base);
@@ -248,6 +245,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         // @dev Convert oracle price to the same decimals as the reference oracle
         oraclePrice = oraclePrice * 10 ** decimalsB / 10 ** decimalsA;
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
+        if (!_isOraclePriceValid(oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
+            revert InvalidOraclePrice();
+        }
 
         Position memory position = _positions[key];
         position.oraclePrice = SafeCast.toUint128(oraclePrice);
