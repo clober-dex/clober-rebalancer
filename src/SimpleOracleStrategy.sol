@@ -227,7 +227,13 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         uint256 priceA = tickA.toPrice();
         uint256 priceB = Tick.wrap(-Tick.unwrap(tickB)).toPrice();
 
-        if (priceA >= priceB) revert InvalidPrice();
+        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+
+        uint256 priceWithFee = uint256(int256(priceA) - bookKeyA.makerPolicy.calculateFee(priceA, false));
+        priceWithFee = uint256(int256(priceWithFee) - bookManager.getBookKey(bookIdB).makerPolicy.calculateFee(priceWithFee, false));
+
+        if (priceWithFee >= priceB) revert InvalidPrice();
         if (rate > RATE_PRECISION) revert InvalidValue();
 
         Config memory config = _configs[key];
@@ -236,14 +242,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdB) / RATE_PRECISION > priceB
         ) revert ExceedsThreshold();
 
-        (BookId bookIdA,) = rebalancer.getBookPairs(key);
-
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-        uint8 decimalsA = _getCurrencyDecimals(bookKeyA.quote);
-        uint8 decimalsB = _getCurrencyDecimals(bookKeyA.base);
-
         // @dev Convert oracle price to the same decimals as the reference oracle
-        oraclePrice = oraclePrice * 10 ** decimalsB / 10 ** decimalsA;
+        oraclePrice =
+            oraclePrice * 10 ** _getCurrencyDecimals(bookKeyA.base) / 10 ** _getCurrencyDecimals(bookKeyA.quote);
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
 
         Position memory position = _positions[key];
