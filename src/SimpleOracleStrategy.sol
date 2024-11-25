@@ -237,8 +237,11 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         ) revert ExceedsThreshold();
 
         (BookId bookIdA,) = rebalancer.getBookPairs(key);
-
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        if (!_isOraclePriceValid(oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
+            revert InvalidOraclePrice();
+        }
+
         uint8 decimalsA = _getCurrencyDecimals(bookKeyA.quote);
         uint8 decimalsB = _getCurrencyDecimals(bookKeyA.base);
 
