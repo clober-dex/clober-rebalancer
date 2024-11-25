@@ -231,7 +231,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
 
         uint256 priceWithFee = uint256(int256(priceA) - bookKeyA.makerPolicy.calculateFee(priceA, false));
-        priceWithFee = uint256(int256(priceWithFee) - bookManager.getBookKey(bookIdB).makerPolicy.calculateFee(priceWithFee, false));
+        priceWithFee = uint256(
+            int256(priceWithFee) - bookManager.getBookKey(bookIdB).makerPolicy.calculateFee(priceWithFee, false)
+        );
 
         if (priceWithFee >= priceB) revert InvalidPrice();
         if (rate > RATE_PRECISION) revert InvalidValue();
