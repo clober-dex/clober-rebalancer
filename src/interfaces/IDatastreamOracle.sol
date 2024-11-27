@@ -31,6 +31,7 @@ interface IDatastreamOracle is IOracle {
     event SetFeed(address indexed asset, bytes32 feedId, uint256 index);
     event SetPrice(address indexed asset, uint256 price);
     event SetFallbackOracle(address indexed newFallbackOracle);
+    event SetOperator(address indexed operator, bool status);
     event Request(address indexed requester, uint256 bitmap);
 
     function isOperator(address account) external view returns (bool);
@@ -42,6 +43,8 @@ interface IDatastreamOracle is IOracle {
     function setFeed(bytes32 feedId, address asset) external;
 
     function setForwarder(address newForwarder) external;
+
+    function setOperator(address operator, bool status) external;
 
     function getFeedIds() external view returns (bytes32[] memory);
 

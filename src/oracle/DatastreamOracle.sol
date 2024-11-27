@@ -190,6 +190,11 @@ contract DatastreamOracle is
         emit SetForwarder(newForwarder);
     }
 
+    function setOperator(address operator, bool status) external onlyOwner {
+        isOperator[operator] = status;
+        emit SetOperator(operator, status);
+    }
+
     function request(uint256 bitmap) external onlyOperator {
         requestBitmap = bitmap;
         emit Request(msg.sender, bitmap);
