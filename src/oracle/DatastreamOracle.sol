@@ -35,6 +35,13 @@ contract DatastreamOracle is
     mapping(address => uint256) internal _assetToPrice;
     address public fallbackOracle;
     address public forwarder;
+    mapping(address => bool) public isOperator;
+    uint256 public requestBitmap;
+
+    modifier onlyOperator() {
+        if (!isOperator[msg.sender]) revert NotOperator();
+        _;
+    }
 
     constructor(address verifier_) Ownable(msg.sender) {
         verifier = IVerifierProxy(verifier_);
@@ -59,10 +66,19 @@ contract DatastreamOracle is
     }
 
     function checkLog(Log calldata log, bytes memory) external view returns (bool, bytes memory) {
-        bytes32[] memory ids = _feedIds;
-        string[] memory stringFeedIds = new string[](ids.length);
-        for (uint256 i = 0; i < ids.length; ++i) {
-            stringFeedIds[i] = Strings.toHexString(uint256(ids[i]), 32);
+        uint256 length = _feedIds.length;
+        string[] memory stringFeedIds = new string[](length);
+        uint256 bitmap = requestBitmap;
+        uint256 l = 0;
+        for (uint256 i = 0; i < length; ++i) {
+            if ((bitmap >> i) & 1 == 0) {
+                continue;
+            }
+            stringFeedIds[l] = Strings.toHexString(uint256(_feedIds[i]), 32);
+            ++l;
+        }
+        assembly {
+            mstore(stringFeedIds, l)
         }
         revert StreamsLookup(
             STRING_DATASTREAMS_FEEDLABEL, stringFeedIds, STRING_DATASTREAMS_QUERYLABEL, log.timestamp, ""
@@ -179,8 +195,14 @@ contract DatastreamOracle is
         emit SetForwarder(newForwarder);
     }
 
-    function request() external {
-        emit Request(msg.sender);
+    function setOperator(address operator, bool status) external onlyOwner {
+        isOperator[operator] = status;
+        emit SetOperator(operator, status);
+    }
+
+    function request(uint256 bitmap) external onlyOperator {
+        requestBitmap = bitmap;
+        emit Request(msg.sender, bitmap);
     }
 
     function getFeedIds() external view returns (bytes32[] memory) {
