@@ -69,11 +69,16 @@ contract DatastreamOracle is
         uint256 length = _feedIds.length;
         string[] memory stringFeedIds = new string[](length);
         uint256 bitmap = requestBitmap;
+        uint256 l = 0;
         for (uint256 i = 0; i < length; ++i) {
             if ((bitmap >> i) & 1 == 0) {
                 continue;
             }
-            stringFeedIds[i] = Strings.toHexString(uint256(_feedIds[i]), 32);
+            stringFeedIds[l] = Strings.toHexString(uint256(_feedIds[i]), 32);
+            ++l;
+        }
+        assembly {
+            mstore(stringFeedIds, l)
         }
         revert StreamsLookup(
             STRING_DATASTREAMS_FEEDLABEL, stringFeedIds, STRING_DATASTREAMS_QUERYLABEL, log.timestamp, ""
