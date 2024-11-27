@@ -44,7 +44,8 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
     }
 
     function requestOraclePublic() external {
-        IERC20(datastreamOracle.feeToken()).transferFrom(msg.sender, address(this), 0.05 * 1e18);
+        address feeToken = datastreamOracle.feeToken();
+        IERC20(feeToken).transferFrom(msg.sender, address(this), (10 ** IERC20Metadata(feeToken).decimals()) / 20);
         datastreamOracle.request(type(uint256).max);
     }
 
