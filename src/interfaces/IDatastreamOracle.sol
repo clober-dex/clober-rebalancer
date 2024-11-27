@@ -48,6 +48,8 @@ interface IDatastreamOracle is IOracle {
 
     function getFeedIds() external view returns (bytes32[] memory);
 
+    function getAllFeedData() external view returns (bytes32[] memory feedIds, FeedData[] memory data);
+
     function forwarder() external view returns (address);
 
     function feeToken() external view returns (address);

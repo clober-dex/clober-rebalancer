@@ -209,6 +209,15 @@ contract DatastreamOracle is
         return _feedIds;
     }
 
+    function getAllFeedData() external view returns (bytes32[] memory feedIds, FeedData[] memory data) {
+        feedIds = _feedIds;
+        uint256 length = feedIds.length;
+        data = new FeedData[](length);
+        for (uint256 i = 0; i < length; ++i) {
+            data[i] = _feedData[feedIds[i]];
+        }
+    }
+
     function setFallbackOracle(address newFallbackOracle) external onlyOwner {
         fallbackOracle = newFallbackOracle;
         emit SetFallbackOracle(newFallbackOracle);
