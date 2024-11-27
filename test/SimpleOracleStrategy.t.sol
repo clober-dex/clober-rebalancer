@@ -103,7 +103,8 @@ contract SimpleOracleStrategyTest is Test {
     }
 
     function testIsOraclePriceValidWhenOraclePriceIsOutOfRange() public {
-        strategy.updatePosition(key, Tick.wrap(-1951).toPrice(), Tick.wrap(-1953), Tick.wrap(1949), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        oracle.setAssetPrice(address(tokenB), 1230 * 1e8);
         assertFalse(strategy.isOraclePriceValid(key));
     }
 
@@ -117,6 +118,7 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(Tick.unwrap(position.tickA), -195304);
         assertEq(Tick.unwrap(position.tickB), 194905);
 
+        oracle.setAssetPrice(address(tokenB), 1230 * 1e8);
         vm.expectEmit(address(strategy));
         emit ISimpleOracleStrategy.UpdatePosition(key, 1238_98347920, Tick.wrap(-205304), Tick.wrap(204905), 1000000);
         strategy.updatePosition(key, Tick.wrap(-205100).toPrice(), Tick.wrap(-205304), Tick.wrap(204905), 1000000);
@@ -125,6 +127,12 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(position.oraclePrice, 1238_98347920);
         assertEq(Tick.unwrap(position.tickA), -205304);
         assertEq(Tick.unwrap(position.tickB), 204905);
+    }
+
+    function testUpdatePositionRevertWhenOraclePriceIsInvalid() public {
+        oracle.setAssetPrice(address(tokenB), 1230 * 1e8);
+        vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidOraclePrice.selector));
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
     }
 
     function testUpdatePositionOwnership() public {
