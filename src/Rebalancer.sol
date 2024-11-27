@@ -232,7 +232,10 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         bytes32 salt,
         address strategy
     ) public selfOnly returns (bytes32 key) {
-        if (!(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))) revert InvalidBookPair();
+        if (
+            !(bookKeyA.quote.equals(bookKeyB.base) && bookKeyA.base.equals(bookKeyB.quote))
+                || bookKeyA.quote.equals(bookKeyA.base)
+        ) revert InvalidBookPair();
         if (address(bookKeyA.hooks) != address(0) || address(bookKeyB.hooks) != address(0)) revert InvalidHook();
         if (strategy == address(0)) revert InvalidStrategy();
 
