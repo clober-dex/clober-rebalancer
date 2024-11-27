@@ -66,14 +66,14 @@ contract DatastreamOracle is
     }
 
     function checkLog(Log calldata log, bytes memory) external view returns (bool, bytes memory) {
-        bytes32[] memory ids = _feedIds;
-        string[] memory stringFeedIds = new string[](ids.length);
+        uint256 length = _feedIds.length;
+        string[] memory stringFeedIds = new string[](length);
         uint256 bitmap = requestBitmap;
-        for (uint256 i = 0; i < ids.length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             if ((bitmap >> i) & 1 == 0) {
                 continue;
             }
-            stringFeedIds[i] = Strings.toHexString(uint256(ids[i]), 32);
+            stringFeedIds[i] = Strings.toHexString(uint256(_feedIds[i]), 32);
         }
         revert StreamsLookup(
             STRING_DATASTREAMS_FEEDLABEL, stringFeedIds, STRING_DATASTREAMS_QUERYLABEL, log.timestamp, ""
