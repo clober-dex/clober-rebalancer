@@ -43,9 +43,9 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
         rebalancer.rebalance(key);
     }
 
-    function requestOraclePublic(uint256 bitmap) external {
+    function requestOraclePublic() external {
         IERC20(datastreamOracle.feeToken()).transferFrom(msg.sender, address(this), 0.05 * 1e18);
-        datastreamOracle.request(bitmap);
+        datastreamOracle.request(type(uint256).max);
     }
 
     function requestOracle(uint256 bitmap) external onlyOwner {
