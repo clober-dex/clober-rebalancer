@@ -8,6 +8,7 @@ interface IDatastreamOracle is IOracle {
     error AlreadySetFeed();
     error InvalidForwarder();
     error InvalidReport();
+    error NotOperator();
 
     struct FeedData {
         address asset;
@@ -30,7 +31,10 @@ interface IDatastreamOracle is IOracle {
     event SetFeed(address indexed asset, bytes32 feedId, uint256 index);
     event SetPrice(address indexed asset, uint256 price);
     event SetFallbackOracle(address indexed newFallbackOracle);
-    event Request(address indexed requester);
+    event SetOperator(address indexed operator, bool status);
+    event Request(address indexed requester, uint256 bitmap);
+
+    function isOperator(address account) external view returns (bool);
 
     function fallbackOracle() external view returns (address);
 
@@ -40,7 +44,11 @@ interface IDatastreamOracle is IOracle {
 
     function setForwarder(address newForwarder) external;
 
+    function setOperator(address operator, bool status) external;
+
     function getFeedIds() external view returns (bytes32[] memory);
+
+    function getAllFeedData() external view returns (bytes32[] memory feedIds, FeedData[] memory data);
 
     function forwarder() external view returns (address);
 
@@ -50,5 +58,5 @@ interface IDatastreamOracle is IOracle {
 
     function feedData(bytes32 feedId) external view returns (FeedData memory);
 
-    function request() external;
+    function request(uint256 bitmap) external;
 }

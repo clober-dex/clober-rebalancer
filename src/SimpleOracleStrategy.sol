@@ -248,6 +248,9 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         oraclePrice =
             oraclePrice * 10 ** _getCurrencyDecimals(bookKeyA.base) / 10 ** _getCurrencyDecimals(bookKeyA.quote);
         oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
+        if (!_isOraclePriceValid(oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
+            revert InvalidOraclePrice();
+        }
 
         Position memory position = _positions[key];
         position.oraclePrice = SafeCast.toUint128(oraclePrice);
