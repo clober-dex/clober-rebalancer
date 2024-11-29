@@ -15,15 +15,17 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   }
 
   let owner: Address = '0x'
+  let datastreamOracle
   if (chain.testnet || isDevelopmentNetwork(chain.id)) {
     owner = deployer
   } else if (chain.id === base.id) {
     owner = '0x872251F2C0cC5699c9e0C226371c4D747fDA247f' // bot address
+    datastreamOracle = await getDeployedAddress('DatastreamOracle')
   } else {
     throw new Error('Unknown chain')
   }
 
-  await deployWithVerify(hre, 'Operator', [await getDeployedAddress('Rebalancer')], {
+  await deployWithVerify(hre, 'Operator', [await getDeployedAddress('Rebalancer'), datastreamOracle], {
     proxy: {
       proxyContract: 'UUPS',
       execute: {
@@ -35,5 +37,5 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
 }
 
 deployFunction.tags = ['Operator']
-deployFunction.dependencies = ['Rebalancer']
+deployFunction.dependencies = ['Rebalancer', 'Oracle']
 export default deployFunction

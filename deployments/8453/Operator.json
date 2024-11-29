@@ -2,57 +2,20 @@
   "address": "0xBB854e8C0f04d919aD770b27015Ee90a9EF31Bf0",
   "abi": [
     {
-      "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
-          "internalType": "address",
-          "name": "previousAdmin",
+          "internalType": "contract IRebalancer",
+          "name": "rebalancer_",
           "type": "address"
         },
         {
-          "indexed": false,
-          "internalType": "address",
-          "name": "newAdmin",
+          "internalType": "contract IDatastreamOracle",
+          "name": "datastreamOracle_",
           "type": "address"
         }
       ],
-      "name": "AdminChanged",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "beacon",
-          "type": "address"
-        }
-      ],
-      "name": "BeaconUpgraded",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "implementation",
-          "type": "address"
-        }
-      ],
-      "name": "Upgraded",
-      "type": "event"
-    },
-    {
-      "stateMutability": "payable",
-      "type": "fallback"
-    },
-    {
-      "stateMutability": "payable",
-      "type": "receive"
+      "stateMutability": "nonpayable",
+      "type": "constructor"
     },
     {
       "inputs": [
@@ -83,12 +46,22 @@
     },
     {
       "inputs": [],
+      "name": "ERC20TransferFailed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "FailedCall",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "InvalidInitialization",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NativeTransferFailed",
       "type": "error"
     },
     {
@@ -186,6 +159,19 @@
       "type": "event"
     },
     {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "implementation",
+          "type": "address"
+        }
+      ],
+      "name": "Upgraded",
+      "type": "event"
+    },
+    {
       "inputs": [],
       "name": "UPGRADE_INTERFACE_VERSION",
       "outputs": [
@@ -203,6 +189,19 @@
       "name": "acceptOwnership",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "datastreamOracle",
+      "outputs": [
+        {
+          "internalType": "contract IDatastreamOracle",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -293,6 +292,26 @@
     {
       "inputs": [
         {
+          "internalType": "uint256",
+          "name": "bitmap",
+          "type": "uint256"
+        }
+      ],
+      "name": "requestOracle",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "requestOraclePublic",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "address",
           "name": "newOwner",
           "type": "address"
@@ -357,18 +376,25 @@
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "_logic",
+          "internalType": "Currency",
+          "name": "currency",
           "type": "address"
         },
         {
-          "internalType": "bytes",
-          "name": "_data",
-          "type": "bytes"
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
-      "stateMutability": "payable",
-      "type": "constructor"
+      "name": "withdraw",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
   ],
   "transactionHash": "0x3f21a14ce70814b6625b73541fa51a94ec7e47238b74f4996a58bc4c9f520af2",
@@ -442,7 +468,7 @@
       "0x872251F2C0cC5699c9e0C226371c4D747fDA247f"
     ]
   },
-  "implementation": "0xBd5f93e27744B07Ab9bB26c89f9AA7D6e3028B10",
+  "implementation": "0x48FdF2Cf7e7FDAfFc3A214f86469E1eD9Ff780F7",
   "devdoc": {
     "details": "This contract implements an upgradeable proxy. It is upgradeable because calls are delegated to an implementation address that can be changed. This address is stored in storage in the location specified by https://eips.ethereum.org/EIPS/eip-1967[EIP1967], so that it doesn't conflict with the storage layout of the implementation behind the proxy.",
     "kind": "dev",
