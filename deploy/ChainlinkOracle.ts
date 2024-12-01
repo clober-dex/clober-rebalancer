@@ -5,7 +5,6 @@ import {
   CHAINLINK_SEQUENCER_ORACLE,
   ORACLE_TIMEOUT,
   SEQUENCER_GRACE_PERIOD,
-  SAFE_WALLET,
 } from '../utils'
 import { getChain } from '@nomicfoundation/hardhat-viem/internal/chains'
 import { Address } from 'viem'
