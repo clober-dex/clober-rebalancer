@@ -263,24 +263,25 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     {
         Pool storage pool = _pools[key];
         uint256 supply = totalSupply[uint256(key)];
-
-        (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB) =
-            _clearPool(key, pool, burnAmount, supply);
-
-        uint256 reserveA = pool.reserveA;
-        uint256 reserveB = pool.reserveB;
-
-        withdrawalA = (reserveA + claimedAmountA) * burnAmount / supply + canceledAmountA;
-        withdrawalB = (reserveB + claimedAmountB) * burnAmount / supply + canceledAmountB;
-
         _burn(user, uint256(key), burnAmount);
-        pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
-        emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
 
-        pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA) - withdrawalA;
-        pool.reserveB = _settleCurrency(bookKeyA.base, reserveB) - withdrawalB;
+        {
+            (uint256 canceledAmountA, uint256 canceledAmountB, ,) =
+                _clearPool(key, pool, burnAmount, supply);
+            pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA);
+            pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
+
+            withdrawalA = (pool.reserveA - canceledAmountA) * burnAmount / supply + canceledAmountA;
+            withdrawalB = (pool.reserveB - canceledAmountB) * burnAmount / supply + canceledAmountB;
+        }
+
+        pool.reserveA -= withdrawalA;
+        pool.reserveB -= withdrawalB;
+
+        pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
+        emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
 
         if (withdrawalA > 0) {
             bookKeyA.quote.transfer(user, withdrawalA);
@@ -307,14 +308,17 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
             _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
             _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
+            pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
+            pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
+
             pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB);
             emit Rebalance(key);
         } catch {
             _clearPool(key, pool, 1, 1);
-        }
 
-        pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
-        pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
+            pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
+            pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
+        }
     }
 
     function _clearPool(bytes32 key, Pool storage pool, uint256 cancelNumerator, uint256 cancelDenominator)
