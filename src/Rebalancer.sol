@@ -6,6 +6,7 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
 import {BookId, BookIdLibrary} from "clober-dex/v2-core/libraries/BookId.sol";
@@ -19,7 +20,7 @@ import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
+contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, ReentrancyGuardTransient {
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -106,7 +107,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         IBookManager.BookKey calldata bookKeyB,
         bytes32 salt,
         address strategy
-    ) external returns (bytes32) {
+    ) external nonReentrant returns (bytes32) {
         return abi.decode(
             bookManager.lock(
                 address(this), abi.encodeWithSelector(this._open.selector, bookKeyA, bookKeyB, salt, strategy)
@@ -118,6 +119,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
     function mint(bytes32 key, uint256 amountA, uint256 amountB, uint256 minLpAmount)
         external
         payable
+        nonReentrant
         returns (uint256 mintAmount)
     {
         Pool storage pool = _pools[key];
@@ -199,6 +201,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
 
     function burn(bytes32 key, uint256 amount, uint256 minAmountA, uint256 minAmountB)
         external
+        nonReentrant
         returns (uint256 withdrawalA, uint256 withdrawalB)
     {
         (withdrawalA, withdrawalB) = abi.decode(
@@ -208,7 +211,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         if (withdrawalA < minAmountA || withdrawalB < minAmountB) revert Slippage();
     }
 
-    function rebalance(bytes32 key) public {
+    function rebalance(bytes32 key) external nonReentrant {
         bookManager.lock(address(this), abi.encodeWithSelector(this._rebalance.selector, key));
     }
 
