@@ -268,8 +268,7 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply {
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
 
         {
-            (uint256 canceledAmountA, uint256 canceledAmountB, ,) =
-                _clearPool(key, pool, burnAmount, supply);
+            (uint256 canceledAmountA, uint256 canceledAmountB,,) = _clearPool(key, pool, burnAmount, supply);
             pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA);
             pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
 
