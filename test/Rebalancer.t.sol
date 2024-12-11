@@ -9,6 +9,7 @@ import "clober-dex/v2-core/BookManager.sol";
 import "solmate/test/utils/mocks/MockERC20.sol";
 
 import "../src/Rebalancer.sol";
+import "../src/TimeEscrow.sol";
 import "./mocks/MockStrategy.sol";
 import "./mocks/TakeRouter.sol";
 
@@ -34,6 +35,15 @@ contract RebalancerTest is Test {
 
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
+
+        address timeEscrowTemplate = address(new TimeEscrow());
+        timeEscrow = ITimeEscrow(
+            address(
+                new ERC1967Proxy(
+                    timeEscrowTemplate, abi.encodeWithSelector(TimeEscrow.initialize.selector, address(this))
+                )
+            )
+        );
 
         address rebalancerTemplate = address(new Rebalancer(bookManager, address(timeEscrow)));
         rebalancer = Rebalancer(
@@ -302,7 +312,7 @@ contract RebalancerTest is Test {
 
         vm.warp(block.timestamp + rebalancer.withdrawalDelay());
         timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenA), 1e18 / 2, block.timestamp, 0));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenB), 1e21 / 2, block.timestamp, 0));
+        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenB), 1e21 / 2, block.timestamp, 1));
 
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
         uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
@@ -350,7 +360,7 @@ contract RebalancerTest is Test {
 
         vm.warp(block.timestamp + rebalancer.withdrawalDelay());
         timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenA), 1e18, block.timestamp, 0));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenB), 1e21, block.timestamp, 0));
+        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenB), 1e21, block.timestamp, 1));
 
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "TOTAL_SUPPLY");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 0, "LP_BALANCE");
