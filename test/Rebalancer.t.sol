@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "clober-dex/v2-core/BookManager.sol";
 import "solmate/test/utils/mocks/MockERC20.sol";
 
@@ -33,7 +34,16 @@ contract RebalancerTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        rebalancer = new Rebalancer(bookManager, address(this));
+        address rebalancerTemplate = address(new Rebalancer(bookManager));
+        rebalancer = Rebalancer(
+            payable(
+                address(
+                    new ERC1967Proxy(
+                        rebalancerTemplate, abi.encodeWithSelector(Rebalancer.initialize.selector, address(this))
+                    )
+                )
+            )
+        );
 
         strategy = new MockStrategy();
 

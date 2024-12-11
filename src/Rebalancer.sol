@@ -7,6 +7,8 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {ILocker} from "clober-dex/v2-core/interfaces/ILocker.sol";
 import {BookId, BookIdLibrary} from "clober-dex/v2-core/libraries/BookId.sol";
@@ -20,7 +22,15 @@ import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
-contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, ReentrancyGuardTransient {
+contract Rebalancer is
+    IRebalancer,
+    ILocker,
+    Ownable2Step,
+    ERC6909Supply,
+    ReentrancyGuardTransient,
+    Initializable,
+    UUPSUpgradeable
+{
     using BookIdLibrary for IBookManager.BookKey;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -41,9 +51,15 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, Reentr
         _;
     }
 
-    constructor(IBookManager bookManager_, address initialOwner_) Ownable(initialOwner_) {
+    constructor(IBookManager bookManager_) Ownable(msg.sender) {
         bookManager = bookManager_;
     }
+
+    function initialize(address initialOwner) external initializer {
+        _transferOwnership(initialOwner);
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function decimals(uint256) external pure returns (uint8) {
         return 18;
