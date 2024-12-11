@@ -38,5 +38,5 @@ interface IMinter {
         uint256 id;
     }
 
-    function unlockAll(UnlockParams[] calldata params) external returns (bool[] memory results);
+    function unlock(UnlockParams[] calldata params) external returns (bool[] memory results);
 }
