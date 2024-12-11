@@ -29,4 +29,6 @@ interface IMinter {
         ERC20PermitParams calldata currencyBPermitParams,
         SwapParams calldata swapParams
     ) external payable;
+
+    function unlockAll(ITimeEscrow.UnlockParams[] calldata params) external returns (bool[] memory results);
 }
