@@ -191,12 +191,13 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, Reentr
         pool.reserveB += amountB;
 
         _mint(msg.sender, uint256(key), mintAmount);
-        pool.strategy.mintHook(msg.sender, key, mintAmount, supply);
-        emit Mint(msg.sender, key, amountA, amountB, mintAmount);
 
         if (refund > 0) {
             CurrencyLibrary.NATIVE.transfer(msg.sender, refund);
         }
+
+        emit Mint(msg.sender, key, amountA, amountB, mintAmount);
+        pool.strategy.mintHook(msg.sender, key, mintAmount, supply);
     }
 
     function burn(bytes32 key, uint256 amount, uint256 minAmountA, uint256 minAmountB)
@@ -282,15 +283,14 @@ contract Rebalancer is IRebalancer, ILocker, Ownable2Step, ERC6909Supply, Reentr
         pool.reserveA -= withdrawalA;
         pool.reserveB -= withdrawalB;
 
-        pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
-        emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
-
         if (withdrawalA > 0) {
             bookKeyA.quote.transfer(user, withdrawalA);
         }
         if (withdrawalB > 0) {
             bookKeyA.base.transfer(user, withdrawalB);
         }
+        emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
+        pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
     }
 
     function _rebalance(bytes32 key) public selfOnly {
