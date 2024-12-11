@@ -3,6 +3,9 @@
 pragma solidity ^0.8.0;
 
 interface ITimeEscrow {
+    error InvalidValue();
+    error ValueTransferFailed();
+
     event Locked(
         address indexed depositor,
         address indexed account,
@@ -28,7 +31,7 @@ interface ITimeEscrow {
         uint256 id;
     }
 
-    function unlock(UnlockParams calldata params) external;
+    function unlock(UnlockParams calldata params) external returns (bool);
 
     function unlockAll(UnlockParams[] calldata params) external returns (bool[] memory results);
 }
