@@ -177,7 +177,7 @@ contract MinterTest is Test {
         emit ITimeEscrow.Unlock(RECEIVER, address(0), 1e18, block.timestamp, 2);
         vm.expectEmit(address(timeEscrow));
         emit ITimeEscrow.Unlock(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
-        bool[] memory results = minter.unlockAll(params);
+        bool[] memory results = minter.unlock(params);
 
         assertTrue(results[0]);
         assertTrue(results[1]);
