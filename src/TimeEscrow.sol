@@ -44,15 +44,15 @@ contract TimeEscrow is ITimeEscrow, Ownable2Step, Initializable, UUPSUpgradeable
             IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        bytes32 key = _encodeKey(account, token, amount, unlockTime);
+        bytes32 proof = _encodeProof(account, token, amount, unlockTime);
         id = escrowCounts++;
-        _proofs[id] = key;
+        _proofs[id] = proof;
 
         emit Lock(msg.sender, account, token, amount, unlockTime, id);
     }
 
     function unlock(address account, address token, uint256 amount, uint256 unlockTime, uint256 id) external {
-        if (_proofs[id] != _encodeKey(account, token, amount, unlockTime)) {
+        if (_proofs[id] != _encodeProof(account, token, amount, unlockTime)) {
             revert InvalidProof();
         }
         if (unlockTime > block.timestamp) revert Locked();
@@ -68,7 +68,7 @@ contract TimeEscrow is ITimeEscrow, Ownable2Step, Initializable, UUPSUpgradeable
         emit Unlock(account, token, amount, unlockTime, id);
     }
 
-    function _encodeKey(address account, address token, uint256 amount, uint256 unlockTime)
+    function _encodeProof(address account, address token, uint256 amount, uint256 unlockTime)
         internal
         pure
         returns (bytes32)
