@@ -31,13 +31,5 @@ interface ITimeEscrow {
         payable
         returns (uint256 id);
 
-    struct UnlockParams {
-        address account;
-        address token;
-        uint256 amount;
-        uint256 unlockTime;
-        uint256 id;
-    }
-
-    function unlock(UnlockParams calldata params) external;
+    function unlock(address account, address token, uint256 amount, uint256 unlockTime, uint256 id) external;
 }

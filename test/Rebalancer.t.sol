@@ -311,8 +311,8 @@ contract RebalancerTest is Test {
         rebalancer.burn(key, beforeSupply / 2, 0, 0);
 
         vm.warp(block.timestamp + rebalancer.withdrawalDelay());
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenA), 1e18 / 2, block.timestamp, 0));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenB), 1e21 / 2, block.timestamp, 1));
+        timeEscrow.unlock(address(this), address(tokenA), 1e18 / 2, block.timestamp, 0);
+        timeEscrow.unlock(address(this), address(tokenB), 1e21 / 2, block.timestamp, 1);
 
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
         uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
@@ -359,8 +359,8 @@ contract RebalancerTest is Test {
         rebalancer.burn(key, lpAmount, 0, 0);
 
         vm.warp(block.timestamp + rebalancer.withdrawalDelay());
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenA), 1e18, block.timestamp, 0));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(tokenB), 1e21, block.timestamp, 1));
+        timeEscrow.unlock(address(this), address(tokenA), 1e18, block.timestamp, 0);
+        timeEscrow.unlock(address(this), address(tokenB), 1e21, block.timestamp, 1);
 
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "TOTAL_SUPPLY");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 0, "LP_BALANCE");

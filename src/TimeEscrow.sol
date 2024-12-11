@@ -55,22 +55,22 @@ contract TimeEscrow is ITimeEscrow, Ownable2Step, Initializable, UUPSUpgradeable
         emit Lock(msg.sender, account, token, amount, unlockTime, id);
     }
 
-    function unlock(UnlockParams calldata params) external {
-        if (!_escrowed.get(params.id)) revert InvalidProof();
-        if (_proofs[params.id] != _encodeKey(params.account, params.token, params.amount, params.unlockTime)) {
+    function unlock(address account, address token, uint256 amount, uint256 unlockTime, uint256 id) external {
+        if (!_escrowed.get(id)) revert InvalidProof();
+        if (_proofs[id] != _encodeKey(account, token, amount, unlockTime)) {
             revert InvalidProof();
         }
-        if (params.unlockTime > block.timestamp) revert Locked();
+        if (unlockTime > block.timestamp) revert Locked();
 
-        _escrowed.setTo(params.id, false);
-        if (params.token == address(0)) {
-            (bool success,) = params.account.call{value: params.amount}("");
+        _escrowed.setTo(id, false);
+        if (token == address(0)) {
+            (bool success,) = account.call{value: amount}("");
             if (!success) revert ValueTransferFailed();
         } else {
-            IERC20(params.token).safeTransfer(params.account, params.amount);
+            IERC20(token).safeTransfer(account, amount);
         }
 
-        emit Unlock(params.account, params.token, params.amount, params.unlockTime, params.id);
+        emit Unlock(account, token, amount, unlockTime, id);
     }
 
     function _encodeKey(address account, address token, uint256 amount, uint256 unlockTime)

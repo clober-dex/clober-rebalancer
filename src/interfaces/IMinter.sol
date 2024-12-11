@@ -30,5 +30,13 @@ interface IMinter {
         SwapParams calldata swapParams
     ) external payable;
 
-    function unlockAll(ITimeEscrow.UnlockParams[] calldata params) external returns (bool[] memory results);
+    struct UnlockParams {
+        address account;
+        address token;
+        uint256 amount;
+        uint256 unlockTime;
+        uint256 id;
+    }
+
+    function unlockAll(UnlockParams[] calldata params) external returns (bool[] memory results);
 }

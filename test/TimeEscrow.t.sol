@@ -111,7 +111,7 @@ contract TimeEscrowTest is Test {
 
         vm.expectEmit(address(timeEscrow));
         emit ITimeEscrow.Unlock(RECEIVER, address(token), 1e18, block.timestamp, 0);
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(RECEIVER, address(token), 1e18, block.timestamp, 0));
+        timeEscrow.unlock(RECEIVER, address(token), 1e18, block.timestamp, 0);
 
         assertEq(token.balanceOf(address(this)), 1e24 - 1e18);
         assertEq(token.balanceOf(RECEIVER), 1e18);
@@ -125,13 +125,13 @@ contract TimeEscrowTest is Test {
         vm.warp(block.timestamp + 1 days);
 
         vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidProof.selector));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(RECEIVER, address(token), 1e18, block.timestamp, 1));
+        timeEscrow.unlock(RECEIVER, address(token), 1e18, block.timestamp, 1);
 
         vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidProof.selector));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(RECEIVER, address(token), 1e18, block.timestamp - 1, 0));
+        timeEscrow.unlock(RECEIVER, address(token), 1e18, block.timestamp - 1, 0);
 
         vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidProof.selector));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(RECEIVER, address(token), 1e18 + 1, block.timestamp, 0));
+        timeEscrow.unlock(RECEIVER, address(token), 1e18 + 1, block.timestamp, 0);
     }
 
     function testUnlockBeforeTime() public {
@@ -141,7 +141,7 @@ contract TimeEscrowTest is Test {
         vm.warp(unlock - 1);
 
         vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.Locked.selector));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(RECEIVER, address(token), 1e18, unlock, 0));
+        timeEscrow.unlock(RECEIVER, address(token), 1e18, unlock, 0);
     }
 
     function testUnlockEth() public {
@@ -151,7 +151,7 @@ contract TimeEscrowTest is Test {
 
         vm.expectEmit(address(timeEscrow));
         emit ITimeEscrow.Unlock(RECEIVER, address(0), 1e18, block.timestamp, 0);
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(RECEIVER, address(0), 1e18, block.timestamp, 0));
+        timeEscrow.unlock(RECEIVER, address(0), 1e18, block.timestamp, 0);
 
         assertEq(address(this).balance, 1e24 - 1e18);
         assertEq(address(RECEIVER).balance, 1e18);
@@ -166,7 +166,7 @@ contract TimeEscrowTest is Test {
         vm.warp(block.timestamp + 1 days);
 
         vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.ValueTransferFailed.selector));
-        timeEscrow.unlock(ITimeEscrow.UnlockParams(address(this), address(0), 1e18, block.timestamp, 0));
+        timeEscrow.unlock(address(this), address(0), 1e18, block.timestamp, 0);
     }
 
     receive() external payable {

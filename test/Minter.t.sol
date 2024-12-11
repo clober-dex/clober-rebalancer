@@ -162,12 +162,12 @@ contract MinterTest is Test {
 
         vm.warp(block.timestamp + 1 days);
 
-        ITimeEscrow.UnlockParams[] memory params = new ITimeEscrow.UnlockParams[](5);
-        params[0] = ITimeEscrow.UnlockParams(RECEIVER, address(tokenA), 1e18, block.timestamp, 0);
-        params[1] = ITimeEscrow.UnlockParams(RECEIVER, address(tokenA), 1e18, block.timestamp, 1);
-        params[2] = ITimeEscrow.UnlockParams(RECEIVER, address(0), 1e18, block.timestamp, 2);
-        params[3] = ITimeEscrow.UnlockParams(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
-        params[4] = ITimeEscrow.UnlockParams(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
+        IMinter.UnlockParams[] memory params = new IMinter.UnlockParams[](5);
+        params[0] = IMinter.UnlockParams(RECEIVER, address(tokenA), 1e18, block.timestamp, 0);
+        params[1] = IMinter.UnlockParams(RECEIVER, address(tokenA), 1e18, block.timestamp, 1);
+        params[2] = IMinter.UnlockParams(RECEIVER, address(0), 1e18, block.timestamp, 2);
+        params[3] = IMinter.UnlockParams(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
+        params[4] = IMinter.UnlockParams(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
 
         vm.expectEmit(address(timeEscrow));
         emit ITimeEscrow.Unlock(RECEIVER, address(tokenA), 1e18, block.timestamp, 0);
