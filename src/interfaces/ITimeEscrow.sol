@@ -5,18 +5,26 @@ pragma solidity ^0.8.0;
 interface ITimeEscrow {
     error InvalidAmount();
     error ValueTransferFailed();
+    error InvalidProof();
+    error Locked();
 
-    event Locked(
+    event Lock(
         address indexed depositor,
         address indexed account,
-        address indexed token,
+        address token,
         uint256 amount,
         uint256 unlockTime,
-        uint256 id
+        uint256 indexed id
     );
-    event Unlocked(address indexed account, address indexed token, uint256 amount, uint256 unlockTime, uint256 id);
+    event Unlock(
+        address indexed account, address indexed token, uint256 amount, uint256 unlockTime, uint256 indexed id
+    );
 
-    function isEscrowed(UnlockParams calldata params) external view returns (bool);
+    function escrowCounts() external view returns (uint256);
+
+    function isEscrowed(uint256 id) external view returns (bool);
+
+    function getProof(uint256 id) external view returns (bytes32);
 
     function lock(address account, address token, uint256 amount, uint256 unlockTime)
         external
@@ -31,7 +39,5 @@ interface ITimeEscrow {
         uint256 id;
     }
 
-    function unlock(UnlockParams calldata params) external returns (bool);
-
-    function unlockAll(UnlockParams[] calldata params) external returns (bool[] memory results);
+    function unlock(UnlockParams calldata params) external;
 }
