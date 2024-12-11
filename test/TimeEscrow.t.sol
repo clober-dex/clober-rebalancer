@@ -64,11 +64,19 @@ contract TimeEscrowTest is Test {
         );
     }
 
+    function testLockWithZeroAmount() public {
+        vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidAmount.selector));
+        timeEscrow.lock(RECEIVER, address(token), 0, block.timestamp + 1 days);
+
+        vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidAmount.selector));
+        timeEscrow.lock{value: 0}(RECEIVER, address(0), 0, block.timestamp + 1 days);
+    }
+
     function testLockNativeWithInaccurateValue() public {
-        vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidValue.selector));
+        vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidAmount.selector));
         timeEscrow.lock{value: 1e18 - 1}(RECEIVER, address(0), 1e18, block.timestamp + 1 days);
 
-        vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidValue.selector));
+        vm.expectRevert(abi.encodeWithSelector(ITimeEscrow.InvalidAmount.selector));
         timeEscrow.lock{value: 1e18 + 1}(RECEIVER, address(0), 1e18, block.timestamp + 1 days);
     }
 
