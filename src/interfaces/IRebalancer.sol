@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
-import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {OrderId} from "clober-dex/v2-core/libraries/OrderId.sol";
 
 import {IStrategy} from "./IStrategy.sol";
@@ -28,7 +27,6 @@ interface IRebalancer {
     error InvalidLockAcquiredSender();
     error InvalidLockCaller();
     error LockFailure();
-    error InvalidMaker();
     error InvalidAmount();
     error InvalidValue();
     error Slippage();
@@ -39,12 +37,25 @@ interface IRebalancer {
     event Rebalance(bytes32 indexed key);
     event Claim(bytes32 indexed key, uint256 claimedAmountA, uint256 claimedAmountB);
     event Cancel(bytes32 indexed key, uint256 canceledAmountA, uint256 canceledAmountB);
+    event SetWithdrawalDelay(uint256 delay);
 
     struct Liquidity {
         uint256 reserve;
         uint256 claimable;
         uint256 cancelable;
     }
+
+    /**
+     * @notice Retrieves the address of the escrow contract.
+     * @return The address of the escrow contract.
+     */
+    function escrow() external view returns (address);
+
+    /**
+     * @notice Retrieves the delay time for withdrawals.
+     * @return The delay time in seconds.
+     */
+    function withdrawalDelay() external view returns (uint256);
 
     /**
      * @notice Retrieves the book pair for a specified book ID.
@@ -124,4 +135,10 @@ interface IRebalancer {
      * @param key The key of the pool.
      */
     function rebalance(bytes32 key) external;
+
+    /**
+     * @notice Sets the delay time for withdrawals.
+     * @param delay The delay time in seconds.
+     */
+    function setWithdrawalDelay(uint256 delay) external;
 }
