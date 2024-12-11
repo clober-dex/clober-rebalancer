@@ -23,7 +23,15 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
     throw new Error('Unknown chain')
   }
 
-  await deployWithVerify(hre, 'Rebalancer', [BOOK_MANAGER[chain.id], owner])
+  await deployWithVerify(hre, 'Rebalancer', [BOOK_MANAGER[chain.id]], {
+    proxy: {
+      proxyContract: 'UUPS',
+      execute: {
+        methodName: 'initialize',
+        args: [owner],
+      },
+    },
+  })
 }
 
 deployFunction.tags = ['Rebalancer']
