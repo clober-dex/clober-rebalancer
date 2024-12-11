@@ -23,6 +23,7 @@ contract MinterTest is Test {
     IBookManager.BookKey public keyA;
     IBookManager.BookKey public keyB;
     bytes32 public key;
+    ITimeEscrow public timeEscrow;
     Rebalancer public rebalancer;
     OpenRouter public cloberOpenRouter;
     MockOracle public oracle;
@@ -41,12 +42,13 @@ contract MinterTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        address rebalancerTemplate = address(new Rebalancer(bookManager));
+        address rebalancerTemplate = address(new Rebalancer(bookManager, address(timeEscrow)));
         rebalancer = Rebalancer(
             payable(
                 address(
                     new ERC1967Proxy(
-                        rebalancerTemplate, abi.encodeWithSelector(Rebalancer.initialize.selector, address(this))
+                        rebalancerTemplate,
+                        abi.encodeWithSelector(Rebalancer.initialize.selector, address(this), 6 hours)
                     )
                 )
             )
