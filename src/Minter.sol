@@ -85,5 +85,19 @@ contract Minter is IMinter {
         }
     }
 
+    function unlock(UnlockParams[] calldata params) external returns (bool[] memory results) {
+        results = new bool[](params.length);
+        ITimeEscrow timeEscrow = ITimeEscrow(address(rebalancer.escrow()));
+        for (uint256 i = 0; i < params.length; ++i) {
+            try timeEscrow.unlock(
+                params[i].account, params[i].token, params[i].amount, params[i].unlockTime, params[i].id
+            ) {
+                results[i] = true;
+            } catch {
+                results[i] = false;
+            }
+        }
+    }
+
     receive() external payable {}
 }

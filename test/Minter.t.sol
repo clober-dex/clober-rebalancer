@@ -14,6 +14,7 @@ import "../src/SimpleOracleStrategy.sol";
 import "./mocks/OpenRouter.sol";
 import "./mocks/MockOracle.sol";
 import "../src/mocks/MockSwap.sol";
+import "../src/TimeEscrow.sol";
 
 contract MinterTest is Test {
     IBookManager public bookManager;
@@ -23,6 +24,7 @@ contract MinterTest is Test {
     IBookManager.BookKey public keyA;
     IBookManager.BookKey public keyB;
     bytes32 public key;
+    ITimeEscrow public timeEscrow;
     Rebalancer public rebalancer;
     OpenRouter public cloberOpenRouter;
     MockOracle public oracle;
@@ -31,6 +33,7 @@ contract MinterTest is Test {
     Minter public minter;
 
     ERC20PermitParams public emptyParams;
+    address public RECEIVER = address(0x132);
 
     function setUp() public {
         bookManager = new BookManager(address(this), address(0x123), "URI", "URI", "Name", "SYMBOL");
@@ -41,12 +44,22 @@ contract MinterTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        address rebalancerTemplate = address(new Rebalancer(bookManager));
+        address timeEscrowTemplate = address(new TimeEscrow());
+        timeEscrow = ITimeEscrow(
+            address(
+                new ERC1967Proxy(
+                    timeEscrowTemplate, abi.encodeWithSelector(TimeEscrow.initialize.selector, address(this))
+                )
+            )
+        );
+
+        address rebalancerTemplate = address(new Rebalancer(bookManager, address(timeEscrow)));
         rebalancer = Rebalancer(
             payable(
                 address(
                     new ERC1967Proxy(
-                        rebalancerTemplate, abi.encodeWithSelector(Rebalancer.initialize.selector, address(this))
+                        rebalancerTemplate,
+                        abi.encodeWithSelector(Rebalancer.initialize.selector, address(this), 6 hours)
                     )
                 )
             )
@@ -106,6 +119,8 @@ contract MinterTest is Test {
         tokenB.approve(address(minter), type(uint256).max);
         tokenA.approve(address(rebalancer), type(uint256).max);
         tokenB.approve(address(rebalancer), type(uint256).max);
+        tokenA.approve(address(timeEscrow), type(uint256).max);
+        tokenB.approve(address(timeEscrow), type(uint256).max);
 
         rebalancer.mint(key, 1e18, 1e18, 0);
     }
@@ -135,5 +150,49 @@ contract MinterTest is Test {
         minter.mint(key, 2e18, 0, 0, emptyParams, emptyParams, swapParams);
 
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance + 1e18);
+    }
+
+    function testUnlockAll() public {
+        vm.deal(address(this), 1e28);
+
+        timeEscrow.lock(RECEIVER, address(tokenA), 1e18, block.timestamp + 1 days);
+        timeEscrow.lock(RECEIVER, address(tokenA), 1e18, block.timestamp + 1 days);
+        timeEscrow.lock{value: 1e18}(RECEIVER, address(0), 1e18, block.timestamp + 1 days);
+        timeEscrow.lock(RECEIVER, address(tokenB), 1e18, block.timestamp + 1 days);
+
+        vm.warp(block.timestamp + 1 days);
+
+        IMinter.UnlockParams[] memory params = new IMinter.UnlockParams[](5);
+        params[0] = IMinter.UnlockParams(RECEIVER, address(tokenA), 1e18, block.timestamp, 0);
+        params[1] = IMinter.UnlockParams(RECEIVER, address(tokenA), 1e18, block.timestamp, 1);
+        params[2] = IMinter.UnlockParams(RECEIVER, address(0), 1e18, block.timestamp, 2);
+        params[3] = IMinter.UnlockParams(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
+        params[4] = IMinter.UnlockParams(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
+
+        vm.expectEmit(address(timeEscrow));
+        emit ITimeEscrow.Unlock(RECEIVER, address(tokenA), 1e18, block.timestamp, 0);
+        vm.expectEmit(address(timeEscrow));
+        emit ITimeEscrow.Unlock(RECEIVER, address(tokenA), 1e18, block.timestamp, 1);
+        vm.expectEmit(address(timeEscrow));
+        emit ITimeEscrow.Unlock(RECEIVER, address(0), 1e18, block.timestamp, 2);
+        vm.expectEmit(address(timeEscrow));
+        emit ITimeEscrow.Unlock(RECEIVER, address(tokenB), 1e18, block.timestamp, 3);
+        bool[] memory results = minter.unlock(params);
+
+        assertTrue(results[0]);
+        assertTrue(results[1]);
+        assertTrue(results[2]);
+        assertTrue(results[3]);
+        assertFalse(results[4]);
+        assertEq(tokenA.balanceOf(RECEIVER), 2e18);
+        assertEq(tokenA.balanceOf(address(timeEscrow)), 0);
+        assertEq(address(RECEIVER).balance, 1e18);
+        assertEq(address(timeEscrow).balance, 0);
+        assertEq(tokenB.balanceOf(RECEIVER), 1e18);
+        assertEq(tokenB.balanceOf(address(timeEscrow)), 0);
+        assertFalse(timeEscrow.isEscrowed(0));
+        assertFalse(timeEscrow.isEscrowed(1));
+        assertFalse(timeEscrow.isEscrowed(2));
+        assertFalse(timeEscrow.isEscrowed(3));
     }
 }

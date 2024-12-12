@@ -29,4 +29,14 @@ interface IMinter {
         ERC20PermitParams calldata currencyBPermitParams,
         SwapParams calldata swapParams
     ) external payable;
+
+    struct UnlockParams {
+        address account;
+        address token;
+        uint256 amount;
+        uint256 unlockTime;
+        uint256 id;
+    }
+
+    function unlock(UnlockParams[] calldata params) external returns (bool[] memory results);
 }
