@@ -44,47 +44,37 @@ interface IRebalancer {
         uint256 cancelable;
     }
 
-    /**
-     * @notice Retrieves the book pair for a specified book ID.
-     * @param bookId The book ID.
-     * @return The book pair.
-     */
+    /// @notice Retrieves the book pair for a specified book ID.
+    /// @param bookId The book ID.
+    /// @return The book pair.
     function bookPair(BookId bookId) external view returns (BookId);
 
-    /**
-     * @notice Retrieves the pool for a specified key.
-     * @param key The key of the pool.
-     * @return The pool.
-     */
+    /// @notice Retrieves the pool for a specified key.
+    /// @param key The key of the pool.
+    /// @return The pool.
     function getPool(bytes32 key) external view returns (Pool memory);
 
-    /**
-     * @notice Retrieves the book pairs for a specified key.
-     * @param key The key of the pool.
-     * @return bookIdA The book ID for the first book.
-     * @return bookIdB The book ID for the second book.
-     */
+    /// @notice Retrieves the book pairs for a specified key.
+    /// @param key The key of the pool.
+    /// @return bookIdA The book ID for the first book.
+    /// @return bookIdB The book ID for the second book.
     function getBookPairs(bytes32 key) external view returns (BookId bookIdA, BookId bookIdB);
 
-    /**
-     * @notice Retrieves the liquidity for a specified key.
-     * @param key The key of the pool.
-     * @return liquidityA The liquidity for the first token.
-     * @return liquidityB The liquidity for the second token.
-     */
+    /// @notice Retrieves the liquidity for a specified key.
+    /// @param key The key of the pool.
+    /// @return liquidityA The liquidity for the first token.
+    /// @return liquidityB The liquidity for the second token.
     function getLiquidity(bytes32 key)
         external
         view
         returns (Liquidity memory liquidityA, Liquidity memory liquidityB);
 
-    /**
-     * @notice Opens a new pool with the specified parameters.
-     * @param bookKeyA The book key for the first book.
-     * @param bookKeyB The book key for the second book.
-     * @param salt The salt value.
-     * @param strategy The address of the strategy.
-     * @return key The key of the opened pool.
-     */
+    /// @notice Opens a new pool with the specified parameters.
+    /// @param bookKeyA The book key for the first book.
+    /// @param bookKeyB The book key for the second book.
+    /// @param salt The salt value.
+    /// @param strategy The address of the strategy.
+    /// @return key The key of the opened pool.
     function open(
         IBookManager.BookKey calldata bookKeyA,
         IBookManager.BookKey calldata bookKeyB,
@@ -92,34 +82,28 @@ interface IRebalancer {
         address strategy
     ) external returns (bytes32 key);
 
-    /**
-     * @notice Mints liquidity for the specified key.
-     * @param key The key of the pool.
-     * @param amountA The amount of the first token.
-     * @param amountB The amount of the second token.
-     * @param minLpAmount The minimum amount of liquidity tokens to mint.
-     * @return The amount of liquidity tokens minted.
-     */
+    /// @notice Mints liquidity for the specified key.
+    /// @param key The key of the pool.
+    /// @param amountA The amount of the first token.
+    /// @param amountB The amount of the second token.
+    /// @param minLpAmount The minimum amount of liquidity tokens to mint.
+    /// @return The amount of liquidity tokens minted.
     function mint(bytes32 key, uint256 amountA, uint256 amountB, uint256 minLpAmount)
         external
         payable
         returns (uint256);
 
-    /**
-     * @notice Burns liquidity for the specified key.
-     * @param key The key of the pool.
-     * @param amount The amount of liquidity tokens to burn.
-     * @param minAmountA The amount of the first token to receive.
-     * @param minAmountB The minimum amount of the second token to receive.
-     * @return The amounts of the first and second tokens to receive.
-     */
+    /// @notice Burns liquidity for the specified key.
+    /// @param key The key of the pool.
+    /// @param amount The amount of liquidity tokens to burn.
+    /// @param minAmountA The amount of the first token to receive.
+    /// @param minAmountB The minimum amount of the second token to receive.
+    /// @return The amounts of the first and second tokens to receive.
     function burn(bytes32 key, uint256 amount, uint256 minAmountA, uint256 minAmountB)
         external
         returns (uint256, uint256);
 
-    /**
-     * @notice Rebalances the pool for the specified key.
-     * @param key The key of the pool.
-     */
+    /// @notice Rebalances the pool for the specified key.
+    /// @param key The key of the pool.
     function rebalance(bytes32 key) external;
 }
