@@ -20,7 +20,6 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {IStrategy} from "./interfaces/IStrategy.sol";
-import {ITimeEscrow} from "./interfaces/ITimeEscrow.sol";
 import {ERC6909Supply} from "./libraries/ERC6909Supply.sol";
 
 contract Rebalancer is
@@ -43,9 +42,7 @@ contract Rebalancer is
     uint256 public constant RATE_PRECISION = 1e6;
 
     IBookManager public immutable bookManager;
-    address public immutable escrow;
 
-    uint256 public withdrawalDelay;
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) public bookPair;
 
@@ -54,14 +51,12 @@ contract Rebalancer is
         _;
     }
 
-    constructor(IBookManager bookManager_, address escrow_) Ownable(msg.sender) {
+    constructor(IBookManager bookManager_) Ownable(msg.sender) {
         bookManager = bookManager_;
-        escrow = escrow_;
     }
 
-    function initialize(address initialOwner, uint256 initialWithdrawalDelay) external initializer {
+    function initialize(address initialOwner) external initializer {
         _transferOwnership(initialOwner);
-        _setWithdrawalDelay(initialWithdrawalDelay);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -304,8 +299,12 @@ contract Rebalancer is
         pool.reserveA -= withdrawalA;
         pool.reserveB -= withdrawalB;
 
-        _transferWithDelay(Currency.unwrap(bookKeyA.quote), user, withdrawalA);
-        _transferWithDelay(Currency.unwrap(bookKeyA.base), user, withdrawalB);
+        if (withdrawalA > 0) {
+            bookKeyA.quote.transfer(user, withdrawalA);
+        }
+        if (withdrawalB > 0) {
+            bookKeyA.base.transfer(user, withdrawalB);
+        }
         emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
         pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
     }
@@ -416,27 +415,6 @@ contract Rebalancer is
     function _encodeKey(BookId bookIdA, BookId bookIdB, bytes32 salt) internal pure returns (bytes32) {
         if (BookId.unwrap(bookIdA) > BookId.unwrap(bookIdB)) (bookIdA, bookIdB) = (bookIdB, bookIdA);
         return keccak256(abi.encodePacked(bookIdA, bookIdB, salt));
-    }
-
-    function setWithdrawalDelay(uint256 delay) external onlyOwner {
-        _setWithdrawalDelay(delay);
-    }
-
-    function _setWithdrawalDelay(uint256 delay) internal {
-        withdrawalDelay = delay;
-        emit SetWithdrawalDelay(delay);
-    }
-
-    function _transferWithDelay(address token, address to, uint256 amount) internal {
-        if (amount > 0) {
-            if (token == address(0)) {
-                ITimeEscrow(escrow).lock{value: amount}(to, address(0), amount, block.timestamp + withdrawalDelay);
-            } else {
-                IERC20(token).approve(escrow, amount);
-                ITimeEscrow(escrow).lock(to, token, amount, block.timestamp + withdrawalDelay);
-                IERC20(token).approve(escrow, 0);
-            }
-        }
     }
 
     receive() external payable {}

@@ -9,7 +9,6 @@ import "clober-dex/v2-core/BookManager.sol";
 import "solmate/test/utils/mocks/MockERC20.sol";
 
 import "../src/Rebalancer.sol";
-import "../src/TimeEscrow.sol";
 import "./mocks/MockStrategy.sol";
 import "./mocks/TakeRouter.sol";
 
@@ -26,7 +25,6 @@ contract RebalancerTest is Test {
     IBookManager.BookKey public unopenedKeyA;
     IBookManager.BookKey public unopenedKeyB;
     bytes32 public key;
-    ITimeEscrow public timeEscrow;
     Rebalancer public rebalancer;
     TakeRouter public takeRouter;
 
@@ -36,22 +34,12 @@ contract RebalancerTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        address timeEscrowTemplate = address(new TimeEscrow());
-        timeEscrow = ITimeEscrow(
-            address(
-                new ERC1967Proxy(
-                    timeEscrowTemplate, abi.encodeWithSelector(TimeEscrow.initialize.selector, address(this))
-                )
-            )
-        );
-
-        address rebalancerTemplate = address(new Rebalancer(bookManager, address(timeEscrow)));
+        address rebalancerTemplate = address(new Rebalancer(bookManager));
         rebalancer = Rebalancer(
             payable(
                 address(
                     new ERC1967Proxy(
-                        rebalancerTemplate,
-                        abi.encodeWithSelector(Rebalancer.initialize.selector, address(this), 6 hours)
+                        rebalancerTemplate, abi.encodeWithSelector(Rebalancer.initialize.selector, address(this))
                     )
                 )
             )
@@ -310,10 +298,6 @@ contract RebalancerTest is Test {
         emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
         rebalancer.burn(key, beforeSupply / 2, 0, 0);
 
-        vm.warp(block.timestamp + rebalancer.withdrawalDelay());
-        timeEscrow.unlock(address(this), address(tokenA), 1e18 / 2, block.timestamp, 0);
-        timeEscrow.unlock(address(this), address(tokenB), 1e21 / 2, block.timestamp, 1);
-
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
         uint256 afterLiquidityA = liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable;
         uint256 afterLiquidityB = liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable;
@@ -357,10 +341,6 @@ contract RebalancerTest is Test {
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Burn(address(this), key, 1e18, 1e21, lpAmount);
         rebalancer.burn(key, lpAmount, 0, 0);
-
-        vm.warp(block.timestamp + rebalancer.withdrawalDelay());
-        timeEscrow.unlock(address(this), address(tokenA), 1e18, block.timestamp, 0);
-        timeEscrow.unlock(address(this), address(tokenB), 1e21, block.timestamp, 1);
 
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "TOTAL_SUPPLY");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 0, "LP_BALANCE");
