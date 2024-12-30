@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {BookId} from "clober-dex/v2-core/libraries/BookId.sol";
 import {OrderId} from "clober-dex/v2-core/libraries/OrderId.sol";
+import {Currency} from "clober-dex/v2-core/libraries/Currency.sol";
 
 import {IStrategy} from "./IStrategy.sol";
 
@@ -33,16 +34,34 @@ interface IRebalancer {
 
     event Open(bytes32 indexed key, BookId indexed bookIdA, BookId indexed bookIdB, bytes32 salt, address strategy);
     event Mint(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
-    event Burn(address indexed user, bytes32 indexed key, uint256 amountA, uint256 amountB, uint256 lpAmount);
+    event Burn(
+        address indexed user,
+        bytes32 indexed key,
+        uint256 lpAmount,
+        uint256 amountA,
+        uint256 amountB,
+        uint256 feeA,
+        uint256 feeB
+    );
     event Rebalance(bytes32 indexed key);
     event Claim(bytes32 indexed key, uint256 claimedAmountA, uint256 claimedAmountB);
     event Cancel(bytes32 indexed key, uint256 canceledAmountA, uint256 canceledAmountB);
+    event Collect(Currency indexed currency, address indexed to, uint256 amount);
 
     struct Liquidity {
         uint256 reserve;
         uint256 claimable;
         uint256 cancelable;
     }
+
+    /// @notice Retrieves the burn fee rate.
+    /// @return The burn fee rate.
+    function burnFeeRate() external view returns (uint256);
+
+    /// @notice Returns the amount of pending fees for a given currency that can be collected
+    /// @param currency The currency to check pending fees for
+    /// @return The total amount of uncollected fees in the specified currency
+    function fees(Currency currency) external view returns (uint256);
 
     /// @notice Retrieves the book pair for a specified book ID.
     /// @param bookId The book ID.
@@ -106,4 +125,10 @@ interface IRebalancer {
     /// @notice Rebalances the pool for the specified key.
     /// @param key The key of the pool.
     function rebalance(bytes32 key) external;
+
+    /// @notice Collects the pending fees for a given currency.
+    /// @param currency The currency to collect fees for.
+    /// @param to The address to send the collected fees to.
+    /// @dev Only the owner can collect fees.
+    function collect(Currency currency, address to) external;
 }
