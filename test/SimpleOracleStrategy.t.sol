@@ -197,10 +197,10 @@ contract SimpleOracleStrategyTest is Test {
         assertEq(ordersA[0].rawAmount, 10010010);
         assertEq(ordersB[0].rawAmount, 8991);
 
-        strategy.rebalanceHook(address(this), key, ordersA, ordersB);
-        (uint256 ra, uint256 rb) = strategy.getLastRawAmount(key);
+        strategy.rebalanceHook(address(this), key, ordersA, ordersB, 10010010, 8991 * 1e12);
+        (uint256 ra, uint256 rb) = strategy.getLastAmount(key);
         assertEq(ra, 10010010);
-        assertEq(rb, 8991);
+        assertEq(rb, 8991 * 1e12);
 
         cancelableA = 1001001;
         cancelableB = 899100000000001;
@@ -210,7 +210,7 @@ contract SimpleOracleStrategyTest is Test {
 
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
 
-        (ra, rb) = strategy.getLastRawAmount(key);
+        (ra, rb) = strategy.getLastAmount(key);
         assertEq(ra, 0);
         assertEq(rb, 0);
 
@@ -243,7 +243,7 @@ contract SimpleOracleStrategyTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.Paused.selector));
         strategy.computeOrders(key);
 
-        (uint256 ra, uint256 rb) = strategy.getLastRawAmount(key);
+        (uint256 ra, uint256 rb) = strategy.getLastAmount(key);
         assertEq(ra, 0);
         assertEq(rb, 0);
     }
