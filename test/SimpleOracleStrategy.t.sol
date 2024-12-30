@@ -77,7 +77,7 @@ contract SimpleOracleStrategyTest is Test {
             })
         );
 
-        _setReferencePrices(1e8, 3400 * 1e8);
+        _setReferencePrices(1e18, 3400 * 1e18);
         strategy.setOperator(address(this), true);
     }
 
@@ -104,33 +104,37 @@ contract SimpleOracleStrategyTest is Test {
 
     function testIsOraclePriceValidWhenOraclePriceIsOutOfRange() public {
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
-        oracle.setAssetPrice(address(tokenB), 1230 * 1e8);
+        oracle.setAssetPrice(address(tokenB), 1230 * 10 ** oracle.decimals());
         assertFalse(strategy.isOraclePriceValid(key));
     }
 
     function testUpdatePosition() public {
         vm.expectEmit(address(strategy));
-        emit ISimpleOracleStrategy.UpdatePosition(key, 3367_73789741, Tick.wrap(-195304), Tick.wrap(194905), 1000000);
+        emit ISimpleOracleStrategy.UpdatePosition(
+            key, 3367_737897410690589621, Tick.wrap(-195304), Tick.wrap(194905), 1000000
+        );
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
 
         SimpleOracleStrategy.Position memory position = strategy.getPosition(key);
-        assertEq(position.oraclePrice, 3367_73789741);
+        assertEq(position.oraclePrice, 3367_737897410690589621);
         assertEq(Tick.unwrap(position.tickA), -195304);
         assertEq(Tick.unwrap(position.tickB), 194905);
 
-        oracle.setAssetPrice(address(tokenB), 1230 * 1e8);
+        oracle.setAssetPrice(address(tokenB), 1230 * 10 ** oracle.decimals());
         vm.expectEmit(address(strategy));
-        emit ISimpleOracleStrategy.UpdatePosition(key, 1238_98347920, Tick.wrap(-205304), Tick.wrap(204905), 1000000);
+        emit ISimpleOracleStrategy.UpdatePosition(
+            key, 1238_983479207161086182, Tick.wrap(-205304), Tick.wrap(204905), 1000000
+        );
         strategy.updatePosition(key, Tick.wrap(-205100).toPrice(), Tick.wrap(-205304), Tick.wrap(204905), 1000000);
 
         position = strategy.getPosition(key);
-        assertEq(position.oraclePrice, 1238_98347920);
+        assertEq(position.oraclePrice, 1238_983479207161086182);
         assertEq(Tick.unwrap(position.tickA), -205304);
         assertEq(Tick.unwrap(position.tickB), 204905);
     }
 
     function testUpdatePositionRevertWhenOraclePriceIsInvalid() public {
-        oracle.setAssetPrice(address(tokenB), 1230 * 1e8);
+        oracle.setAssetPrice(address(tokenB), 1230 * 10 ** oracle.decimals());
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidOraclePrice.selector));
         strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(194905), 1000000);
     }

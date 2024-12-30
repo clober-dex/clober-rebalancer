@@ -10,7 +10,7 @@ contract MockOracle is IOracle {
     bool public isValid = true;
 
     function decimals() external pure returns (uint8) {
-        return 8;
+        return 18;
     }
 
     function getAssetPrice(address asset) external view override returns (uint256) {
