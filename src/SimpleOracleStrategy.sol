@@ -224,25 +224,29 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         external
         onlyOperator
     {
+        if (rate > RATE_PRECISION) revert InvalidValue();
+
         uint256 priceA = tickA.toPrice();
         uint256 priceB = Tick.wrap(-Tick.unwrap(tickB)).toPrice();
-
-        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
-        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
-
-        uint256 priceWithFee = uint256(int256(priceA) - bookKeyA.makerPolicy.calculateFee(priceA, false));
-        priceWithFee = uint256(
-            int256(priceWithFee) - bookManager.getBookKey(bookIdB).makerPolicy.calculateFee(priceWithFee, false)
-        );
-
-        if (priceWithFee >= priceB) revert InvalidPrice();
-        if (rate > RATE_PRECISION) revert InvalidValue();
 
         Config memory config = _configs[key];
         if (
             oraclePrice * (RATE_PRECISION + config.priceThresholdA) / RATE_PRECISION < priceA
                 || oraclePrice * (RATE_PRECISION - config.priceThresholdB) / RATE_PRECISION > priceB
         ) revert ExceedsThreshold();
+
+        (BookId bookIdA, BookId bookIdB) = rebalancer.getBookPairs(key);
+        IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(bookIdA);
+        priceA = bookKeyA.makerPolicy.usesQuote()
+            ? uint256(int256(priceA) + bookKeyA.makerPolicy.calculateFee(priceA, false))
+            : bookKeyA.makerPolicy.calculateOriginalAmount(priceA, true);
+
+        IBookManager.BookKey memory bookKeyB = bookManager.getBookKey(bookIdB);
+        priceB = bookKeyB.makerPolicy.usesQuote()
+            ? bookKeyB.makerPolicy.calculateOriginalAmount(priceB, false)
+            : uint256(int256(priceB) - bookKeyB.makerPolicy.calculateFee(priceB, false));
+
+        if (priceA >= priceB) revert InvalidPrice();
 
         // @dev Convert oracle price to the same decimals as the reference oracle
         oraclePrice =

@@ -143,7 +143,7 @@ contract SimpleOracleStrategyTest is Test {
 
     function testUpdatePositionWhenBidPriceIsHigherThanAskPrice() public {
         vm.expectRevert(abi.encodeWithSelector(ISimpleOracleStrategy.InvalidPrice.selector));
-        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195304), Tick.wrap(195405), 1000000);
+        strategy.updatePosition(key, Tick.wrap(-195100).toPrice(), Tick.wrap(-195100), Tick.wrap(195101), 1000000);
     }
 
     function testUpdatePositionWhenPricesAreTooFarFromOraclePrice() public {
