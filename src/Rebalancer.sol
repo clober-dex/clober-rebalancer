@@ -287,14 +287,14 @@ contract Rebalancer is
 
         IBookManager.BookKey memory bookKeyA = bookManager.getBookKey(pool.bookIdA);
 
-        {
-            (uint256 canceledAmountA, uint256 canceledAmountB,,) = _clearPool(key, pool, burnAmount, supply);
-            pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA);
-            pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
+        _clearPool(key, pool, burnAmount, supply);
+        pool.reserveA = _settleCurrency(bookKeyA.quote, pool.reserveA);
+        pool.reserveB = _settleCurrency(bookKeyA.base, pool.reserveB);
 
-            withdrawalA = (pool.reserveA - canceledAmountA) * burnAmount / supply + canceledAmountA;
-            withdrawalB = (pool.reserveB - canceledAmountB) * burnAmount / supply + canceledAmountB;
-        }
+        (Liquidity memory liquidityA, Liquidity memory liquidityB) = getLiquidity(key);
+
+        withdrawalA = (liquidityA.reserve + liquidityA.claimable + liquidityA.cancelable) * burnAmount / supply;
+        withdrawalB = (liquidityB.reserve + liquidityB.claimable + liquidityB.cancelable) * burnAmount / supply;
 
         pool.reserveA -= withdrawalA;
         pool.reserveB -= withdrawalB;
@@ -339,12 +339,11 @@ contract Rebalancer is
         }
     }
 
-    function _clearPool(bytes32 key, Pool storage pool, uint256 cancelNumerator, uint256 cancelDenominator)
-        internal
-        returns (uint256 canceledAmountA, uint256 canceledAmountB, uint256 claimedAmountA, uint256 claimedAmountB)
-    {
-        (canceledAmountA, claimedAmountB) = _clearOrders(pool.orderListA, cancelNumerator, cancelDenominator);
-        (canceledAmountB, claimedAmountA) = _clearOrders(pool.orderListB, cancelNumerator, cancelDenominator);
+    function _clearPool(bytes32 key, Pool storage pool, uint256 cancelNumerator, uint256 cancelDenominator) internal {
+        (uint256 canceledAmountA, uint256 claimedAmountB) =
+            _clearOrders(pool.orderListA, cancelNumerator, cancelDenominator);
+        (uint256 canceledAmountB, uint256 claimedAmountA) =
+            _clearOrders(pool.orderListB, cancelNumerator, cancelDenominator);
         emit Claim(key, claimedAmountA, claimedAmountB);
         emit Cancel(key, canceledAmountA, canceledAmountB);
     }
@@ -364,7 +363,7 @@ contract Rebalancer is
                 canceledAmount += bookManager.cancel(
                     IBookManager.CancelParams({
                         id: orderId,
-                        toUnit: (orderInfo.open - orderInfo.open * cancelNumerator / cancelDenominator).toUint64()
+                        toUnit: (orderInfo.open * (cancelDenominator - cancelNumerator) / cancelDenominator).toUint64()
                     }),
                     ""
                 );
