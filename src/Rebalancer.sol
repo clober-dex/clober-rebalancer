@@ -42,17 +42,20 @@ contract Rebalancer is
     uint256 public constant RATE_PRECISION = 1e6;
 
     IBookManager public immutable bookManager;
+    uint256 public immutable burnFeeRate;
 
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) public bookPair;
+    mapping(Currency => uint256) public fees;
 
     modifier selfOnly() {
         if (msg.sender != address(this)) revert NotSelf();
         _;
     }
 
-    constructor(IBookManager bookManager_) Ownable(msg.sender) {
+    constructor(IBookManager bookManager_, uint256 burnFeeRate_) Ownable(msg.sender) {
         bookManager = bookManager_;
+        burnFeeRate = burnFeeRate_;
     }
 
     function initialize(address initialOwner) external initializer {
@@ -299,13 +302,21 @@ contract Rebalancer is
         pool.reserveA -= withdrawalA;
         pool.reserveB -= withdrawalB;
 
+        uint256 feeA;
+        uint256 feeB;
         if (withdrawalA > 0) {
+            feeA = (withdrawalA * burnFeeRate + RATE_PRECISION - 1) / RATE_PRECISION;
+            withdrawalA -= feeA;
             bookKeyA.quote.transfer(user, withdrawalA);
+            fees[bookKeyA.quote] += feeA;
         }
         if (withdrawalB > 0) {
+            feeB = (withdrawalB * burnFeeRate + RATE_PRECISION - 1) / RATE_PRECISION;
+            withdrawalB -= feeB;
             bookKeyA.base.transfer(user, withdrawalB);
+            fees[bookKeyA.base] += feeB;
         }
-        emit Burn(user, key, withdrawalA, withdrawalB, burnAmount);
+        emit Burn(user, key, burnAmount, withdrawalA, withdrawalB, feeA, feeB);
         pool.strategy.burnHook(msg.sender, key, burnAmount, supply);
     }
 
@@ -418,4 +429,11 @@ contract Rebalancer is
     }
 
     receive() external payable {}
+
+    function collect(Currency currency, address to) external onlyOwner {
+        uint256 fee = fees[currency];
+        fees[currency] = 0;
+        currency.transfer(to, fee);
+        emit Collect(currency, to, fee);
+    }
 }

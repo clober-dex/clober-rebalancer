@@ -16,6 +16,8 @@ contract RebalancerTest is Test {
     using BookIdLibrary for IBookManager.BookKey;
     using TickLibrary for Tick;
 
+    address public constant FEE_RECEIVER = address(0x3333);
+
     IBookManager public bookManager;
     MockStrategy public strategy;
     MockERC20 public tokenA;
@@ -34,7 +36,7 @@ contract RebalancerTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        address rebalancerTemplate = address(new Rebalancer(bookManager));
+        address rebalancerTemplate = address(new Rebalancer(bookManager, 100));
         rebalancer = Rebalancer(
             payable(
                 address(
@@ -93,7 +95,7 @@ contract RebalancerTest is Test {
         BookId bookIdA = unopenedKeyA.toId();
         BookId bookIdB = unopenedKeyB.toId();
 
-        uint256 snapshotId = vm.snapshot();
+        uint256 snapshotId = vm.snapshotState();
         vm.expectEmit(false, true, true, true, address(rebalancer));
         emit IRebalancer.Open(bytes32(0), bookIdA, bookIdB, 0x0, address(strategy));
         bytes32 key1 = rebalancer.open(unopenedKeyA, unopenedKeyB, 0x0, address(strategy));
@@ -104,7 +106,7 @@ contract RebalancerTest is Test {
         assertEq(BookId.unwrap(idA), BookId.unwrap(bookIdA), "PAIRS_A");
         assertEq(BookId.unwrap(idB), BookId.unwrap(bookIdB), "PAIRS_B");
 
-        vm.revertTo(snapshotId);
+        vm.revertToState(snapshotId);
         vm.expectEmit(false, true, true, true, address(rebalancer));
         emit IRebalancer.Open(bytes32(0), bookIdB, bookIdA, 0x0, address(strategy));
         bytes32 key2 = rebalancer.open(unopenedKeyB, unopenedKeyA, 0x0, address(strategy));
@@ -166,7 +168,7 @@ contract RebalancerTest is Test {
     function testMintInitially() public {
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "INITIAL_SUPPLY");
 
-        uint256 snapshotId = vm.snapshot();
+        uint256 snapshotId = vm.snapshotState();
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 1e18, 1e18 + 1, 1e18 + 1);
@@ -180,7 +182,7 @@ contract RebalancerTest is Test {
         assertEq(liquidityB.reserve + liquidityB.cancelable + liquidityB.claimable, 1e18 + 1, "LIQUIDITY_B_2");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 1e18 + 1, "LP_BALANCE_2");
 
-        vm.revertTo(snapshotId);
+        vm.revertToState(snapshotId);
 
         vm.expectEmit(address(rebalancer));
         emit IRebalancer.Mint(address(this), key, 1e18 + 1, 1e18, 1e18 + 1);
@@ -295,7 +297,15 @@ contract RebalancerTest is Test {
         rebalancer.rebalance(key);
 
         vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
+        emit IRebalancer.Burn(
+            address(this),
+            key,
+            beforeSupply / 2,
+            1e18 / 2 - 50000000000000,
+            1e21 / 2 - 50000000000000000,
+            50000000000000,
+            50000000000000000
+        );
         rebalancer.burn(key, beforeSupply / 2, 0, 0);
 
         (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
@@ -305,8 +315,10 @@ contract RebalancerTest is Test {
         assertEq(afterLiquidityA, beforeLiquidityA - 1e18 / 2, "LIQUIDITY_A");
         assertEq(afterLiquidityB, beforeLiquidityB - 1e21 / 2, "LIQUIDITY_B");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), beforeLpBalance - beforeSupply / 2, "LP_BALANCE");
-        assertEq(tokenA.balanceOf(address(this)) - beforeABalance, 1e18 / 2, "A_BALANCE");
-        assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, 1e21 / 2, "B_BALANCE");
+        assertEq(tokenA.balanceOf(address(this)) - beforeABalance, 1e18 / 2 - 50000000000000, "A_BALANCE");
+        assertEq(tokenB.balanceOf(address(this)) - beforeBBalance, 1e21 / 2 - 50000000000000000, "B_BALANCE");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenA))), 50000000000000, "FEE_A");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenB))), 50000000000000000, "FEE_B");
     }
 
     function testBurnSuccessfullyWhenComputeOrdersReverted() public {
@@ -316,7 +328,15 @@ contract RebalancerTest is Test {
         strategy.setShouldRevert(true);
 
         vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Burn(address(this), key, 1e18 / 2, 1e21 / 2, beforeSupply / 2);
+        emit IRebalancer.Burn(
+            address(this),
+            key,
+            beforeSupply / 2,
+            1e18 / 2 - 50000000000000,
+            1e21 / 2 - 50000000000000000,
+            50000000000000,
+            50000000000000000
+        );
         rebalancer.burn(key, beforeSupply / 2, 0, 0);
     }
 
@@ -339,13 +359,23 @@ contract RebalancerTest is Test {
         uint256 beforeTokenBBalance = tokenB.balanceOf(address(this));
 
         vm.expectEmit(address(rebalancer));
-        emit IRebalancer.Burn(address(this), key, 1e18, 1e21, lpAmount);
+        emit IRebalancer.Burn(
+            address(this),
+            key,
+            lpAmount,
+            1e18 - 100000000000000,
+            1e21 - 100000000000000000,
+            100000000000000,
+            100000000000000000
+        );
         rebalancer.burn(key, lpAmount, 0, 0);
 
         assertEq(rebalancer.totalSupply(uint256(key)), 0, "TOTAL_SUPPLY");
         assertEq(rebalancer.balanceOf(address(this), uint256(key)), 0, "LP_BALANCE");
-        assertEq(tokenA.balanceOf(address(this)), 1e18 + beforeTokenABalance, "A_BALANCE");
-        assertEq(tokenB.balanceOf(address(this)), 1e21 + beforeTokenBBalance, "B_BALANCE");
+        assertEq(tokenA.balanceOf(address(this)), 1e18 - 100000000000000 + beforeTokenABalance, "A_BALANCE");
+        assertEq(tokenB.balanceOf(address(this)), 1e21 - 100000000000000000 + beforeTokenBBalance, "B_BALANCE");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenA))), 100000000000000, "FEE_A");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenB))), 100000000000000000, "FEE_B");
     }
 
     function testRebalance() public {
@@ -411,6 +441,28 @@ contract RebalancerTest is Test {
         assertGt(afterLiquidityB, beforeLiquidityB, "LIQUIDITY_B");
         assertEq(tokenA.balanceOf(address(rebalancer)), afterPool.reserveA, "RESERVE_A");
         assertEq(tokenB.balanceOf(address(rebalancer)), afterPool.reserveB, "RESERVE_B");
+    }
+
+    function testCollect() public {
+        uint256 beforeSupply = rebalancer.mint(key, 1e18, 1e21, 0);
+        rebalancer.rebalance(key);
+        rebalancer.burn(key, beforeSupply / 2, 0, 0);
+
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenA))), 50000000000000, "FEE_A");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenB))), 50000000000000000, "FEE_B");
+
+        rebalancer.collect(Currency.wrap(address(tokenA)), address(0x123123));
+        assertEq(tokenA.balanceOf(address(0x123123)), 50000000000000, "A_BALANCE");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenA))), 0, "FEE_A");
+        rebalancer.collect(Currency.wrap(address(tokenB)), address(0x123123));
+        assertEq(tokenB.balanceOf(address(0x123123)), 50000000000000000, "B_BALANCE");
+        assertEq(rebalancer.fees(Currency.wrap(address(tokenB))), 0, "FEE_B");
+    }
+
+    function testCollectOwnership() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0x123)));
+        vm.prank(address(0x123));
+        rebalancer.collect(Currency.wrap(address(tokenA)), address(0x3333));
     }
 
     receive() external payable {}

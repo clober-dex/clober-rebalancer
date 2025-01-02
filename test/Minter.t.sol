@@ -41,7 +41,7 @@ contract MinterTest is Test {
         tokenA = new MockERC20("Token A", "TKA", 18);
         tokenB = new MockERC20("Token B", "TKB", 18);
 
-        address rebalancerTemplate = address(new Rebalancer(bookManager));
+        address rebalancerTemplate = address(new Rebalancer(bookManager, 100));
         rebalancer = Rebalancer(
             payable(
                 address(
