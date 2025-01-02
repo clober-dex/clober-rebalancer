@@ -31,7 +31,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     mapping(address => bool) public isOperator;
     mapping(bytes32 => Config) internal _configs;
     mapping(bytes32 => Position) internal _positions;
-    mapping(bytes32 => uint256) internal _lastRawAmounts;
+    mapping(bytes32 => uint256) internal _lastAmountA;
+    mapping(bytes32 => uint256) internal _lastAmountB;
 
     modifier onlyOperator() {
         if (!isOperator[msg.sender]) revert NotOperator();
@@ -54,9 +55,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         return _positions[key];
     }
 
-    function getLastRawAmount(bytes32 key) external view returns (uint256, uint256) {
-        uint256 lastRawAmounts = _lastRawAmounts[key];
-        return (lastRawAmounts >> 128, lastRawAmounts & LAST_RAW_AMOUNT_MASK);
+    function getLastAmount(bytes32 key) external view returns (uint256, uint256) {
+        return (_lastAmountA[key], _lastAmountB[key]);
     }
 
     function computeOrders(bytes32 key) external view returns (Order[] memory ordersA, Order[] memory ordersB) {
@@ -76,15 +76,11 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
             (liquidityA, liquidityB) = rebalancer.getLiquidity(key);
 
-            uint256 lastRawAmounts = _lastRawAmounts[key];
             if (
-                lastRawAmounts > 0
+                (_lastAmountA[key] > 0 || _lastAmountB[key] > 0)
                     && (
-                        liquidityA.cancelable
-                            > (lastRawAmounts >> 128) * bookKeyA.unitSize * config.rebalanceThreshold / RATE_PRECISION
-                            || liquidityB.cancelable
-                                > (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * bookKeyB.unitSize * config.rebalanceThreshold
-                                    / RATE_PRECISION
+                        liquidityA.cancelable > _lastAmountA[key] * config.rebalanceThreshold / RATE_PRECISION
+                            || liquidityB.cancelable > _lastAmountB[key] * config.rebalanceThreshold / RATE_PRECISION
                     )
             ) {
                 return (ordersA, ordersB);
@@ -210,7 +206,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
     }
 
     function pause(bytes32 key) external onlyOperator {
-        delete _lastRawAmounts[key];
+        delete _lastAmountA[key];
+        delete _lastAmountB[key];
         _positions[key].paused = true;
         emit Pause(key);
     }
@@ -259,7 +256,8 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         position.rate = rate;
 
         _positions[key] = position;
-        delete _lastRawAmounts[key];
+        delete _lastAmountA[key];
+        delete _lastAmountB[key];
         emit UpdatePosition(key, oraclePrice, tickA, tickB, rate);
     }
 
@@ -292,24 +290,15 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
 
     function burnHook(address, bytes32 key, uint256 burnAmount, uint256 lastTotalSupply) external {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
-        uint256 lastRawAmounts = _lastRawAmounts[key];
-        _lastRawAmounts[key] = lastRawAmounts - (((lastRawAmounts >> 128) * burnAmount / lastTotalSupply) << 128)
-            - (lastRawAmounts & LAST_RAW_AMOUNT_MASK) * burnAmount / lastTotalSupply;
+        _lastAmountA[key] -= _lastAmountA[key] * burnAmount / lastTotalSupply;
+        _lastAmountB[key] -= _lastAmountB[key] * burnAmount / lastTotalSupply;
     }
 
-    function rebalanceHook(address, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB) external {
+    function rebalanceHook(address, bytes32 key, Order[] memory, Order[] memory, uint256 amountA, uint256 amountB)
+        external
+    {
         if (msg.sender != address(rebalancer)) revert InvalidAccess();
-        uint256 lastRawAmountA;
-        uint256 lastRawAmountB;
-        for (uint256 i = 0; i < liquidityA.length; ++i) {
-            IStrategy.Order memory order = liquidityA[i];
-            lastRawAmountA += order.rawAmount;
-        }
-
-        for (uint256 i = 0; i < liquidityB.length; ++i) {
-            IStrategy.Order memory order = liquidityB[i];
-            lastRawAmountB += order.rawAmount;
-        }
-        _lastRawAmounts[key] = (lastRawAmountA << 128) + lastRawAmountB;
+        _lastAmountA[key] = amountA;
+        _lastAmountB[key] = amountB;
     }
 }

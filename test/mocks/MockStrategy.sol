@@ -28,12 +28,9 @@ contract MockStrategy is IStrategy {
         shouldRevert = _shouldRevert;
     }
 
-    function mintHook(address sender, bytes32 key, uint256 mintAmount, uint256 totalSupply) external view {}
+    function mintHook(address, bytes32, uint256, uint256) external view {}
 
-    function burnHook(address sender, bytes32 key, uint256 burnAmount, uint256 totalSupply) external view {}
+    function burnHook(address, bytes32, uint256, uint256) external view {}
 
-    function rebalanceHook(address sender, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB)
-        external
-        view
-    {}
+    function rebalanceHook(address, bytes32, Order[] memory, Order[] memory, uint256, uint256) external view {}
 }

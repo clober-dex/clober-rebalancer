@@ -65,10 +65,10 @@ interface ISimpleOracleStrategy is IStrategy {
     /// @return A Position struct containing paused state, oracle price, rate, tickA, and tickB.
     function getPosition(bytes32 key) external view returns (Position memory);
 
-    /// @notice Returns two raw amounts recorded in the last operation for a specified key.
+    /// @notice Returns two amounts recorded in the last operation for a specified key.
     /// @param key A unique identifier for the position or pool.
-    /// @return (uint256, uint256) representing the two raw amounts (likely token A / token B).
-    function getLastRawAmount(bytes32 key) external view returns (uint256, uint256);
+    /// @return (uint256, uint256) representing the two amounts (likely token A / token B).
+    function getLastAmount(bytes32 key) external view returns (uint256, uint256);
 
     /// @notice Checks if the oracle price for the specified key is valid according to the strategy's criteria.
     /// @param key A unique identifier for the position or pool.

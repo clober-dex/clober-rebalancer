@@ -37,6 +37,14 @@ interface IStrategy {
     /// @param key The key of the pool.
     /// @param liquidityA The liquidity orders for the first token.
     /// @param liquidityB The liquidity orders for the second token.
-    function rebalanceHook(address sender, bytes32 key, Order[] memory liquidityA, Order[] memory liquidityB)
-        external;
+    /// @param amountA The amount of the first token.
+    /// @param amountB The amount of the second token.
+    function rebalanceHook(
+        address sender,
+        bytes32 key,
+        Order[] memory liquidityA,
+        Order[] memory liquidityB,
+        uint256 amountA,
+        uint256 amountB
+    ) external;
 }

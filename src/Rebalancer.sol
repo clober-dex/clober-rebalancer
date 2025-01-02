@@ -323,13 +323,13 @@ contract Rebalancer is
             if (liquidityA.length == 0 && liquidityB.length == 0) return;
             _clearPool(key, pool, 1, 1);
 
-            _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
-            _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
+            uint256 amountA = _setLiquidity(bookKeyA, liquidityA, pool.orderListA);
+            uint256 amountB = _setLiquidity(bookKeyB, liquidityB, pool.orderListB);
 
             pool.reserveA = _settleCurrency(bookKeyA.quote, reserveA);
             pool.reserveB = _settleCurrency(bookKeyA.base, reserveB);
 
-            pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB);
+            pool.strategy.rebalanceHook(msg.sender, key, liquidityA, liquidityB, amountA, amountB);
             emit Rebalance(key);
         } catch {
             _clearPool(key, pool, 1, 1);
@@ -381,10 +381,10 @@ contract Rebalancer is
         IBookManager.BookKey memory bookKey,
         IStrategy.Order[] memory liquidity,
         OrderId[] storage emptyOrderIds
-    ) internal {
+    ) internal returns (uint256 amount) {
         for (uint256 i = 0; i < liquidity.length; ++i) {
             if (liquidity[i].rawAmount == 0) continue;
-            (OrderId orderId,) = bookManager.make(
+            (OrderId orderId, uint256 quoteAmount) = bookManager.make(
                 IBookManager.MakeParams({
                     key: bookKey,
                     tick: liquidity[i].tick,
@@ -393,6 +393,7 @@ contract Rebalancer is
                 }),
                 ""
             );
+            amount += quoteAmount;
             emptyOrderIds.push(orderId);
         }
     }
