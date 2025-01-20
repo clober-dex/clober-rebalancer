@@ -38,7 +38,7 @@ interface ISimpleOracleStrategy is IStrategy {
 
     struct Position {
         bool paused;
-        uint128 oraclePrice;
+        uint176 oraclePrice;
         uint24 rate;
         Tick tickA;
         Tick tickB;

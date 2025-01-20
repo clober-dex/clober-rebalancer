@@ -15,12 +15,15 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   }
 
   let owner: Address = '0x'
+  let feeAmount: BigInt = 0n
   let datastreamOracle
   if (chain.testnet || isDevelopmentNetwork(chain.id)) {
     owner = deployer
+    feeAmount = 0n
   } else if (chain.id === base.id) {
     owner = '0x872251F2C0cC5699c9e0C226371c4D747fDA247f' // bot address
     datastreamOracle = await getDeployedAddress('DatastreamOracle')
+    feeAmount = 10n ** 18n / 20n
   } else {
     throw new Error('Unknown chain')
   }
@@ -30,7 +33,7 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
       proxyContract: 'UUPS',
       execute: {
         methodName: 'initialize',
-        args: [owner],
+        args: [owner, feeAmount],
       },
     },
   })

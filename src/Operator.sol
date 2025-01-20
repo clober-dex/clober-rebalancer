@@ -17,14 +17,16 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
 
     IRebalancer public immutable rebalancer;
     IDatastreamOracle public immutable datastreamOracle;
+    uint256 public requestFeeAmount;
 
     constructor(IRebalancer rebalancer_, IDatastreamOracle datastreamOracle_) Ownable(msg.sender) {
         rebalancer = rebalancer_;
         datastreamOracle = datastreamOracle_;
     }
 
-    function initialize(address initialOwner) external initializer {
+    function initialize(address initialOwner, uint256 requestFeeAmount_) external initializer {
         _transferOwnership(initialOwner);
+        requestFeeAmount = requestFeeAmount_;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -45,7 +47,7 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
 
     function requestOraclePublic() external {
         address feeToken = datastreamOracle.feeToken();
-        IERC20(feeToken).transferFrom(msg.sender, address(this), (10 ** IERC20Metadata(feeToken).decimals()) / 20);
+        IERC20(feeToken).transferFrom(msg.sender, address(this), requestFeeAmount);
         datastreamOracle.request(type(uint256).max);
     }
 
@@ -55,5 +57,9 @@ contract Operator is UUPSUpgradeable, Initializable, Ownable2Step {
 
     function withdraw(Currency currency, address to, uint256 amount) external onlyOwner {
         currency.transfer(to, amount);
+    }
+
+    function setRequestFeeAmount(uint256 requestFeeAmount_) external onlyOwner {
+        requestFeeAmount = requestFeeAmount_;
     }
 }

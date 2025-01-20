@@ -20,6 +20,7 @@ interface IRebalancer {
         OrderId[] orderListB;
     }
 
+    error InvalidRate();
     error NotSelf();
     error InvalidHook();
     error InvalidStrategy();

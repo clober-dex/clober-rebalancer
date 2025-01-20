@@ -47,15 +47,22 @@ contract Rebalancer is
     mapping(bytes32 key => Pool) private _pools;
     mapping(BookId => BookId) public bookPair;
     mapping(Currency => uint256) public fees;
+    string public name;
+    string public symbol;
 
     modifier selfOnly() {
         if (msg.sender != address(this)) revert NotSelf();
         _;
     }
 
-    constructor(IBookManager bookManager_, uint256 burnFeeRate_) Ownable(msg.sender) {
+    constructor(IBookManager bookManager_, uint256 burnFeeRate_, string memory name_, string memory symbol_)
+        Ownable(msg.sender)
+    {
+        if (burnFeeRate_ >= RATE_PRECISION) revert InvalidRate();
         bookManager = bookManager_;
         burnFeeRate = burnFeeRate_;
+        name = name_;
+        symbol = symbol_;
     }
 
     function initialize(address initialOwner) external initializer {

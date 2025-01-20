@@ -170,7 +170,7 @@ contract DatastreamOracle is
         emit SetFeed(data.asset, feedId, data.index);
     }
 
-    function decimals() external pure returns (uint8) {
+    function decimals() public pure returns (uint8) {
         return 18;
     }
 
@@ -219,6 +219,7 @@ contract DatastreamOracle is
     }
 
     function setFallbackOracle(address newFallbackOracle) external onlyOwner {
+        if (IOracle(newFallbackOracle).decimals() != decimals()) revert DifferentPrecision();
         fallbackOracle = newFallbackOracle;
         emit SetFallbackOracle(newFallbackOracle);
     }

@@ -81,7 +81,7 @@ contract Minter is IMinter {
 
     function _approve(Currency currency, address spender, uint256 amount) internal {
         if (!currency.isNative()) {
-            IERC20(Currency.unwrap(currency)).approve(spender, amount);
+            IERC20(Currency.unwrap(currency)).forceApprove(spender, amount);
         }
     }
 
