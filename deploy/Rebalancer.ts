@@ -15,15 +15,21 @@ const deployFunction: DeployFunction = async function (hre: HardhatRuntimeEnviro
   }
 
   let owner: Address = '0x'
+  let name: String = ''
+  let symbol: String = ''
   if (chain.testnet || isDevelopmentNetwork(chain.id)) {
     owner = deployer
+    name = 'Clober Liquidity Vault'
+    symbol = 'LV'
   } else if (chain.id === arbitrum.id || chain.id === base.id) {
     owner = SAFE_WALLET[chain.id] // Safe
+    name = 'Clober Liquidity Vault'
+    symbol = 'LV'
   } else {
     throw new Error('Unknown chain')
   }
 
-  await deployWithVerify(hre, 'Rebalancer', [BOOK_MANAGER[chain.id], 100], {
+  await deployWithVerify(hre, 'Rebalancer', [BOOK_MANAGER[chain.id], 100, name, symbol], {
     proxy: {
       proxyContract: 'UUPS',
       execute: {
