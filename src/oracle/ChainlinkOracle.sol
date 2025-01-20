@@ -28,7 +28,7 @@ contract ChainlinkOracle is IChainlinkOracle, Ownable2Step {
         _setGracePeriod(gracePeriod_);
     }
 
-    function decimals() external pure returns (uint8) {
+    function decimals() public pure returns (uint8) {
         return 8;
     }
 
@@ -74,6 +74,7 @@ contract ChainlinkOracle is IChainlinkOracle, Ownable2Step {
     }
 
     function setFallbackOracle(address newFallbackOracle) external onlyOwner {
+        if (IOracle(newFallbackOracle).decimals() != decimals()) revert DifferentPrecision();
         fallbackOracle = newFallbackOracle;
         emit SetFallbackOracle(newFallbackOracle);
     }

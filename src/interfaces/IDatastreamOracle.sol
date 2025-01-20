@@ -8,6 +8,7 @@ interface IDatastreamOracle is IOracle {
     error InvalidForwarder();
     error InvalidReport();
     error NotOperator();
+    error DifferentPrecision();
 
     struct FeedData {
         address asset;

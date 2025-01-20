@@ -8,6 +8,7 @@ interface IChainlinkOracle is IOracle {
     error LengthMismatch();
     error InvalidTimeout();
     error InvalidGracePeriod();
+    error DifferentPrecision();
 
     event SetSequencerOracle(address indexed newSequencerOracle);
     event SetTimeout(uint256 newTimeout);
