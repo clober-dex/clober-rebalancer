@@ -254,7 +254,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         }
 
         Position memory position = _positions[key];
-        position.oraclePrice = SafeCast.toUint128(oraclePrice);
+        position.oraclePrice = SafeCast.toUint176(oraclePrice);
         position.tickA = tickA;
         position.tickB = tickB;
         position.rate = rate;

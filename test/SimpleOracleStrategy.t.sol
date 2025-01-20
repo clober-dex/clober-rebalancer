@@ -282,6 +282,14 @@ contract SimpleOracleStrategyTest is Test {
         strategy.unpause(key);
     }
 
+    function testLargeOraclePriceExceedsUint128() public {
+        _setReferencePrices(1, uint256(58662020672688495886265712861148522827481680187947892) / 1e18);
+        // Should not be reverted.
+        strategy.updatePosition(
+            key, TickLibrary.MAX_PRICE - 1, Tick.wrap(TickLibrary.MIN_TICK), Tick.wrap(TickLibrary.MIN_TICK), 1000000
+        );
+    }
+
     function getLiquidity(bytes32)
         public
         view
