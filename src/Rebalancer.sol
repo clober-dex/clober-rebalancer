@@ -58,6 +58,7 @@ contract Rebalancer is
     constructor(IBookManager bookManager_, uint256 burnFeeRate_, string memory name_, string memory symbol_)
         Ownable(msg.sender)
     {
+        if (burnFeeRate_ >= RATE_PRECISION) revert InvalidRate();
         bookManager = bookManager_;
         burnFeeRate = burnFeeRate_;
         name = name_;
