@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Tick, TickLibrary} from "clober-dex/v2-core/libraries/Tick.sol";
 import {IBookManager} from "clober-dex/v2-core/interfaces/IBookManager.sol";
 import {FeePolicy, FeePolicyLibrary} from "clober-dex/v2-core/libraries/FeePolicy.sol";
@@ -248,7 +249,7 @@ contract SimpleOracleStrategy is ISimpleOracleStrategy, Ownable2Step {
         // @dev Convert oracle price to the same decimals as the reference oracle
         oraclePrice =
             oraclePrice * 10 ** _getCurrencyDecimals(bookKeyA.base) / 10 ** _getCurrencyDecimals(bookKeyA.quote);
-        oraclePrice = (oraclePrice * 10 ** referenceOracle.decimals()) >> 96;
+        oraclePrice = Math.mulDiv(oraclePrice, 10 ** referenceOracle.decimals(), 1 << 96);
         if (!_isOraclePriceValid(oraclePrice, config.referenceThreshold, bookKeyA.quote, bookKeyA.base)) {
             revert InvalidOraclePrice();
         }
